@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "^5.15.8",
+    "@sendgrid/mail": "^8.1.6",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "bullmq": "^5.70.1",

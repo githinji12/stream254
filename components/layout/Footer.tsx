@@ -158,8 +158,8 @@ export default function Footer() {
             </h3>
             <ul className="space-y-3">
               {[
-                { label: t('login'), href: '/login' },
-                { label: t('signup'), href: '/signup' },
+                { label: t('Login'), href: '/login' },
+                { label: t('Signup'), href: '/signup' },
                 { label: t('footer.terms'), href: '/terms' },
                 { label: t('footer.privacy'), href: '/privacy' },
                 { label: t('footer.guidelines'), href: '/guidelines' },
