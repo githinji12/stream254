@@ -1,16 +1,24 @@
 // app/search/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Video, Profile } from '@/lib/types'
-import { Search, Eye, MessageCircle, X } from 'lucide-react'
+import { Search, Eye, MessageCircle, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import LikeButtonCard from '@/components/video/LikeButtonCard'
 import CommentModal from '@/components/comments/CommentModal'
 
-export default function SearchPage() {
+// 🎨 Kenyan Theme Constants
+const KENYA = {
+  red: '#bb0000',
+  green: '#007847',
+  black: '#000000',
+} as const
+
+// ✅ Inner component that uses useSearchParams (must be wrapped in Suspense)
+function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const query = searchParams.get('q') || ''
@@ -53,7 +61,7 @@ export default function SearchPage() {
               avatar_url
             )
           `)
-          .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,profile.username.ilike.%${searchTerm}%`)
+          .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,profiles.username.ilike.%${searchTerm}%`)
           .order('created_at', { ascending: false })
           .limit(20)
 
@@ -143,7 +151,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-8 px-4">
+    <div className="min-h-[calc(100vh-4rem)] py-8 px-4 bg-linear-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <form onSubmit={handleSearch} className="max-w-xl mb-4">
@@ -153,7 +161,7 @@ export default function SearchPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search videos, creators..."
-                className="w-full px-4 py-3 pl-12 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                className="w-full px-4 py-3 pl-12 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#bb0000]/20 focus:border-[#bb0000] text-base"
               />
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               {searchTerm && (
@@ -174,11 +182,11 @@ export default function SearchPage() {
           {query && (
             <p className="text-gray-600">
               {loading ? (
-                <span>Searching for {query}...</span>
+                <span>Searching for "{query}"...</span>
               ) : videos.length === 0 ? (
-                <span>No results for {query}</span>
+                <span>No results for "{query}"</span>
               ) : (
-                <span>Found {videos.length} result{videos.length !== 1 ? 's' : ''} for {query}</span>
+                <span>Found {videos.length} result{videos.length !== 1 ? 's' : ''} for "{query}"</span>
               )}
             </p>
           )}
@@ -186,7 +194,13 @@ export default function SearchPage() {
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-transparent"
+              style={{
+                borderTopColor: KENYA.red,
+                borderRightColor: KENYA.black,
+                borderBottomColor: KENYA.green
+              }}>
+            </div>
           </div>
         ) : !query ? (
           <div className="text-center py-12">
@@ -209,7 +223,8 @@ export default function SearchPage() {
             </p>
             <Link
               href="/"
-              className="inline-block px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
+              className="inline-block px-6 py-3 rounded-lg font-medium text-white transition-all"
+              style={{ background: `linear-gradient(135deg, ${KENYA.red}, ${KENYA.green})` }}
             >
               Browse All Videos
             </Link>
@@ -240,13 +255,16 @@ export default function SearchPage() {
                   </div>
 
                   <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 line-clamp-2 mb-3 group-hover:text-blue-600">
+                    <h3 className="font-semibold text-gray-900 line-clamp-2 mb-3 group-hover:text-[#bb0000]">
                       {video.title}
                     </h3>
                     
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <div className="h-6 w-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        <div 
+                          className="h-6 w-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                          style={{ background: `linear-gradient(135deg, ${KENYA.red}, ${KENYA.green})` }}
+                        >
                           {video.profile?.username?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <span className="truncate max-w-25">
@@ -266,7 +284,7 @@ export default function SearchPage() {
 
                     <div className="flex items-center gap-3 text-xs text-gray-500">
                       <div className="flex items-center gap-1">
-                        <Eye className="h-3 w-3" />
+                        <Eye className="h-3 w-3" style={{ color: KENYA.red }} />
                         <span>{video.views}</span>
                       </div>
                       
@@ -277,9 +295,9 @@ export default function SearchPage() {
                           setSelectedVideo(video)
                           setIsModalOpen(true)
                         }}
-                        className="flex items-center gap-1 hover:text-blue-600 transition-colors text-left"
+                        className="flex items-center gap-1 hover:text-[#bb0000] transition-colors text-left"
                       >
-                        <MessageCircle className="h-3 w-3" />
+                        <MessageCircle className="h-3 w-3" style={{ color: KENYA.green }} />
                         <span>{engagement.comments}</span>
                       </button>
                       
@@ -305,5 +323,44 @@ export default function SearchPage() {
         />
       )}
     </div>
+  )
+}
+
+// ✅ Loading fallback component
+function SearchSkeleton() {
+  return (
+    <div className="min-h-[calc(100vh-4rem)] py-8 px-4 bg-linear-to-br from-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <div className="max-w-xl mb-4">
+            <div className="h-12 bg-gray-200 rounded-full animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse">
+              <div className="aspect-video bg-gray-200" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="flex gap-2">
+                  <div className="h-3 bg-gray-200 rounded w-12" />
+                  <div className="h-3 bg-gray-200 rounded w-12" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ✅ Main export with Suspense boundary
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchSkeleton />}>
+      <SearchContent />
+    </Suspense>
   )
 }
