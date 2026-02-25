@@ -4,6 +4,8 @@
 import { memo, useCallback, useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useLanguage } from '@/lib/i18n/client'
+import { LanguageSelector } from '@/components/shared/LanguageSelector'
 
 // 🎨 Kenyan Theme Constants
 const KENYA = {
@@ -18,7 +20,7 @@ const KENYA_GRADIENT = {
   flag: 'linear-gradient(90deg, #007847 0%, #007847 33%, #000000 33%, #000000 34%, #bb0000 34%, #bb0000 66%, #000000 66%, #000000 67%, #007847 67%, #007847 100%)',
 } as const
 
-// 🗺️ Route Constants - ✅ FIXED: Profile route uses dynamic [id]
+// 🗺️ Route Constants
 const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
@@ -26,7 +28,7 @@ const ROUTES = {
   UPLOAD: '/upload',
   SEARCH: '/search',
   TRENDING: '/trending',
-  PROFILE: (id: string) => `/profile/${id}`, // ✅ FIXED: Proper profile path
+  PROFILE: (id: string) => `/profile/${id}`,
   CREATOR_STUDIO: '/creator-studio',
   SETTINGS: '/settings',
 } as const
@@ -60,7 +62,7 @@ const KenyaFlagStripe = memo(function KenyaFlagStripe() {
 })
 KenyaFlagStripe.displayName = 'KenyaFlagStripe'
 
-// 🎬 Logo Component - ✅ FIXED: Added Home navigation
+// 🎬 Logo Component
 const NavLogo = memo(function NavLogo() {
   const router = useRouter()
   
@@ -76,7 +78,7 @@ const NavLogo = memo(function NavLogo() {
       aria-label="Stream254 Home"
     >
       <div
-        className="p-1.5 rounded-lg bg-to-br from-kenya-red to-kenya-green group-hover:scale-105 transition-transform"
+        className="p-1.5 rounded-lg bg-linear-to-br from-[#bb0000] to-[#007847] group-hover:scale-105 transition-transform"
         aria-hidden="true"
       >
         <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -100,6 +102,7 @@ const SearchBar = memo(function SearchBar({
   isMobile?: boolean
   onClose?: () => void 
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -154,15 +157,15 @@ const SearchBar = memo(function SearchBar({
   return (
     <div className={isMobile ? 'relative w-full' : 'relative w-full max-w-xl'}>
       <form onSubmit={handleSubmit} className="relative">
-        <label htmlFor="search-input" className="sr-only">Search videos and creators</label>
+        <label htmlFor="search-input" className="sr-only">{t('search.placeholder')}</label>
         <input
           id="search-input"
           type="search"
           value={query}
           onChange={handleChange}
-          placeholder="Search videos, creators..."
+          placeholder={t('search.placeholder')} // ✅ Translated placeholder
           className="w-full px-4 py-2.5 pl-10 pr-10 border-2 border-gray-300 rounded-full focus:outline-none focus:border-[#bb0000] focus:ring-2 focus:ring-[#bb0000]/20 text-sm transition-all duration-300"
-          aria-label="Search videos and creators"
+          aria-label={t('search.placeholder')}
           aria-autocomplete="list"
         />
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -177,7 +180,7 @@ const SearchBar = memo(function SearchBar({
       {(query || isLoading) && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
           {isLoading ? (
-            <div className="p-4 text-center text-gray-500 text-sm">Searching...</div>
+            <div className="p-4 text-center text-gray-500 text-sm">{t('loading.searching')}</div>
           ) : (
             <ul>
               {suggestions.map((suggestion, index) => (
@@ -207,6 +210,7 @@ const TrendingButton = memo(function TrendingButton({
   isMobile?: boolean
   onClose?: () => void 
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const router = useRouter()
   const pathname = usePathname()
   const isActive = pathname === ROUTES.TRENDING
@@ -217,13 +221,13 @@ const TrendingButton = memo(function TrendingButton({
     <button
       onClick={handleClick}
       className={`flex items-center gap-2 font-medium rounded-lg transition-all duration-300 ${isActive ? 'bg-[#bb0000]/10 text-[#bb0000]' : 'text-gray-700 hover:text-[#bb0000] hover:bg-[#bb0000]/10'} ${isMobile ? 'px-4 py-3 w-full justify-start' : 'px-4 py-2 text-sm'}`}
-      aria-label="View trending videos"
+      aria-label={t('navigation.trending')}
       aria-current={isActive ? 'page' : undefined}
     >
       <svg className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-[#bb0000]`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
         <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3.3.9.8 1.8 1.5 2.8z" />
       </svg>
-      <span>{isMobile ? 'Trending Videos' : 'Trending'}</span>
+      <span>{isMobile ? t('navigation.trending') : t('navigation.trending')}</span>
     </button>
   )
 })
@@ -231,9 +235,10 @@ TrendingButton.displayName = 'TrendingButton'
 
 // 🔔 Notification Bell Component
 const NotificationBell = memo(function NotificationBell({ isMobile = false }: { isMobile?: boolean }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const [hasNotifications] = useState(false)
   return (
-    <button className={`relative p-2 rounded-lg transition-colors text-gray-700 hover:text-[#bb0000] hover:bg-[#bb0000]/10 ${isMobile ? 'w-full justify-start px-4 py-3' : ''}`} aria-label="Notifications">
+    <button className={`relative p-2 rounded-lg transition-colors text-gray-700 hover:text-[#bb0000] hover:bg-[#bb0000]/10 ${isMobile ? 'w-full justify-start px-4 py-3' : ''}`} aria-label={t('navigation.notifications')}>
       <svg className={isMobile ? 'h-5 w-5' : 'h-5 w-5'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
       </svg>
@@ -243,7 +248,7 @@ const NotificationBell = memo(function NotificationBell({ isMobile = false }: { 
 })
 NotificationBell.displayName = 'NotificationBell'
 
-// 👤 Profile Dropdown Component - ✅ FIXED: Uses actual user ID
+// 👤 Profile Dropdown Component
 const ProfileDropdown = memo(function ProfileDropdown({ 
   userId,
   username, 
@@ -252,22 +257,23 @@ const ProfileDropdown = memo(function ProfileDropdown({
   isMobile = false,
   onClose 
 }: { 
-  userId: string // ✅ ADDED: Actual user ID for profile link
+  userId: string
   username: string
   avatarUrl?: string | null
   onSignOut: () => Promise<void>
   isMobile?: boolean
   onClose?: () => void 
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const menuItems = [
-    { label: 'Profile', href: ROUTES.PROFILE(userId), icon: 'user' }, // ✅ FIXED: Uses actual userId
-    { label: 'Creator Studio', href: ROUTES.CREATOR_STUDIO, icon: 'video', premium: true },
-    { label: 'Settings', href: ROUTES.SETTINGS, icon: 'settings' },
+    { label: t('navigation.profile'), href: ROUTES.PROFILE(userId), icon: 'user' },
+    { label: t('navigation.creator_studio'), href: ROUTES.CREATOR_STUDIO, icon: 'video', premium: true },
+    { label: t('navigation.settings'), href: ROUTES.SETTINGS, icon: 'settings' },
   ]
 
   const handleNavigate = useCallback((href: string) => { router.push(href); setIsOpen(false); onClose?.() }, [router, onClose])
@@ -310,7 +316,7 @@ const ProfileDropdown = memo(function ProfileDropdown({
     return (
       <>
         <button onClick={() => handleNavigate(ROUTES.PROFILE(userId))} className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-gray-50 transition-colors">
-          <Avatar /><div className="flex-1 min-w-0"><p className="font-medium text-gray-900 truncate">@{username}</p><p className="text-xs text-gray-500">View Profile</p></div>
+          <Avatar /><div className="flex-1 min-w-0"><p className="font-medium text-gray-900 truncate">@{username}</p><p className="text-xs text-gray-500">{t('profile.view_profile')}</p></div>
         </button>
         <div className="space-y-1 pt-2 border-t border-gray-100">
           {menuItems.map((item) => (
@@ -320,7 +326,7 @@ const ProfileDropdown = memo(function ProfileDropdown({
             </button>
           ))}
           <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 w-full text-left rounded-xl hover:bg-red-50 text-red-600 transition-colors">
-            <span className="font-medium">Sign Out</span>
+            <span className="font-medium">{t('navigation.logout')}</span>
           </button>
         </div>
       </>
@@ -344,7 +350,7 @@ const ProfileDropdown = memo(function ProfileDropdown({
           ))}
           <div className="my-2 border-t border-gray-100" />
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition-colors" role="menuitem">
-            <span className="text-sm font-medium">Sign Out</span>
+            <span className="text-sm font-medium">{t('navigation.logout')}</span>
           </button>
         </div>
       )}
@@ -353,7 +359,7 @@ const ProfileDropdown = memo(function ProfileDropdown({
 })
 ProfileDropdown.displayName = 'ProfileDropdown'
 
-// 🔐 Auth Buttons Component - ✅ FIXED: Passes userId to ProfileDropdown
+// 🔐 Auth Buttons Component
 const AuthButtons = memo(function AuthButtons({ 
   user, 
   profile,
@@ -367,6 +373,7 @@ const AuthButtons = memo(function AuthButtons({
   isMobile?: boolean
   onClose?: () => void 
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const router = useRouter()
   const handleNavigate = useCallback((href: string) => { router.push(href); onClose?.() }, [router, onClose])
   const handleUploadClick = useCallback(() => { if (!user) { router.push(ROUTES.LOGIN); return }; handleNavigate(ROUTES.UPLOAD) }, [user, router, handleNavigate])
@@ -375,11 +382,10 @@ const AuthButtons = memo(function AuthButtons({
   if (user && profile) {
     return (
       <>
-        <button onClick={handleUploadClick} className={isMobile ? 'flex items-center gap-3 px-4 py-3 w-full rounded-xl bg-white text-[#bb0000] border-2 border-[#bb0000] hover:bg-[#bb0000] hover:text-white transition-colors justify-center' : 'hidden md:flex items-center justify-center gap-2 px-5 py-2.5 font-semibold rounded-full bg-white text-[#bb0000] border-2 border-[#bb0000] hover:bg-[#bb0000] hover:text-white transition-all shadow-sm hover:shadow-[#bb0000]/30 hover:-translate-y-0.5'} aria-label="Upload video">
+        <button onClick={handleUploadClick} className={isMobile ? 'flex items-center gap-3 px-4 py-3 w-full rounded-xl bg-white text-[#bb0000] border-2 border-[#bb0000] hover:bg-[#bb0000] hover:text-white transition-colors justify-center' : 'hidden md:flex items-center justify-center gap-2 px-5 py-2.5 font-semibold rounded-full bg-white text-[#bb0000] border-2 border-[#bb0000] hover:bg-[#bb0000] hover:text-white transition-all shadow-sm hover:shadow-[#bb0000]/30 hover:-translate-y-0.5'} aria-label={t('video.upload')}>
           <svg className={iconClasses} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-          <span>{isMobile ? 'Upload Video' : 'Upload'}</span>
+          <span>{isMobile ? t('video.upload') : t('navigation.upload')}</span>
         </button>
-        {/* ✅ FIXED: Pass userId to ProfileDropdown */}
         <ProfileDropdown 
           userId={user.id} 
           username={profile.username} 
@@ -394,13 +400,13 @@ const AuthButtons = memo(function AuthButtons({
 
   return (
     <>
-      <button onClick={() => handleNavigate(ROUTES.LOGIN)} className={isMobile ? 'flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-gray-50 transition-colors' : 'hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-gray-700 hover:text-[#bb0000] hover:bg-[#bb0000]/10 transition-all'} aria-label="Login to your account">
+      <button onClick={() => handleNavigate(ROUTES.LOGIN)} className={isMobile ? 'flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-gray-50 transition-colors' : 'hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-gray-700 hover:text-[#bb0000] hover:bg-[#bb0000]/10 transition-all'} aria-label={t(' login')}>
         <svg className={`${iconClasses} text-[#bb0000]`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" /></svg>
-        <span>Login</span>
+        <span>{t('login')}</span>
       </button>
-      <button onClick={() => handleNavigate(ROUTES.SIGNUP)} className={isMobile ? 'flex items-center gap-3 px-4 py-3 w-full rounded-xl bg-[#007847] text-white hover:bg-[#005c36] transition-colors justify-center' : 'hidden md:flex items-center justify-center gap-2 px-5 py-2.5 font-semibold rounded-full bg-[#007847] text-white hover:bg-[#005c36] transition-all shadow-sm hover:shadow-[#007847]/30'} aria-label="Create new account">
+      <button onClick={() => handleNavigate(ROUTES.SIGNUP)} className={isMobile ? 'flex items-center gap-3 px-4 py-3 w-full rounded-xl bg-[#007847] text-white hover:bg-[#005c36] transition-colors justify-center' : 'hidden md:flex items-center justify-center gap-2 px-5 py-2.5 font-semibold rounded-full bg-[#007847] text-white hover:bg-[#005c36] transition-all shadow-sm hover:shadow-[#007847]/30'} aria-label={t('signup')}>
         <svg className={iconClasses} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6" /></svg>
-        <span>Sign Up</span>
+        <span>{t('signup')}</span>
       </button>
     </>
   )
@@ -421,6 +427,7 @@ const MobileMenu = memo(function MobileMenu({
   profile: { username: string; avatar_url?: string | null } | null
   onSignOut: () => Promise<void>
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const pathname = usePathname()
   useEffect(() => { if (isOpen) onClose() }, [pathname, isOpen, onClose])
 
@@ -447,12 +454,12 @@ const MobileMenu = memo(function MobileMenu({
           </nav>
           <div className="pt-4 border-t border-gray-100">
             <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-              <a href="/about" className="hover:text-[#bb0000]">About</a>
-              <a href="/help" className="hover:text-[#bb0000]">Help</a>
-              <a href="/terms" className="hover:text-[#bb0000]">Terms</a>
-              <a href="/privacy" className="hover:text-[#bb0000]">Privacy</a>
+              <a href="/about" className="hover:text-[#bb0000]">{t('footer.about')}</a>
+              <a href="/help" className="hover:text-[#bb0000]">{t('footer.help')}</a>
+              <a href="/terms" className="hover:text-[#bb0000]">{t('footer.terms')}</a>
+              <a href="/privacy" className="hover:text-[#bb0000]">{t('footer.privacy')}</a>
             </div>
-            <p className="mt-4 text-xs text-gray-400">© {new Date().getFullYear()} Stream254 🇰🇪</p>
+            <p className="mt-4 text-xs text-gray-400">© {new Date().getFullYear()} {t('app.name')} 🇰🇪</p>
           </div>
         </div>
       </div>
@@ -466,6 +473,7 @@ MobileMenu.displayName = 'MobileMenu'
 // ===================================================
 export default function Navbar() {
   const { user, profile, signOut } = useAuth()
+  const { t } = useLanguage() // ✅ Get translation function
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -488,15 +496,21 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             <TrendingButton />
             <NotificationBell />
+            {/* ✅ Language Selector */}
+            <LanguageSelector compact />
             <AuthButtons user={user} profile={profile} onSignOut={handleSignOut} />
           </div>
-          <button onClick={toggleMobileMenu} className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileMenuOpen}>
-            {mobileMenuOpen ? (
-              <svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-            ) : (
-              <svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
-            )}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            {/* ✅ Compact Language Selector for Mobile */}
+            <LanguageSelector compact />
+            <button onClick={toggleMobileMenu} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileMenuOpen}>
+              {mobileMenuOpen ? (
+                <svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              ) : (
+                <svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
       <MobileMenu isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} user={user} profile={profile} onSignOut={handleSignOut} />

@@ -1,10 +1,11 @@
 // app/profile/[id]/page.tsx
 'use client'
 
-import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import { useLanguage } from '@/lib/i18n/client'
 import type { Video, Profile } from '@/lib/types'
 import {
   Play, Eye, Heart, Calendar, Edit, MoreVertical,
@@ -93,6 +94,7 @@ function AvatarCropModal({
   onSuccess: (avatarUrl: string) => void
   supabase: any
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const [imageSrc, setImageSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -127,21 +129,17 @@ function AvatarCropModal({
       const containerRect = containerRef.current.getBoundingClientRect()
       const image = imageRef.current
       const { naturalWidth, naturalHeight } = image
-      
       if (naturalWidth === 0 || naturalHeight === 0 || containerRect.width === 0) return
-      
       const cropWidth = containerRect.width / zoom
       const cropHeight = containerRect.height / zoom
       const scaleX = naturalWidth / containerRect.width
       const scaleY = naturalHeight / containerRect.height
-      
       const pixelCrop = {
         x: Math.max(0, (-crop.x / zoom) * scaleX),
         y: Math.max(0, (-crop.y / zoom) * scaleY),
         width: Math.min(cropWidth * scaleX, naturalWidth),
         height: Math.min(cropHeight * scaleY, naturalHeight)
       }
-      
       setCroppedAreaPixels(pixelCrop)
     }
   }, [crop.x, crop.y, zoom, imageSrc])
@@ -156,26 +154,24 @@ function AvatarCropModal({
   const handleFileSelect = useCallback(function(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file (JPG, PNG, WebP)')
+      setError(t('errors.invalid_file_type'))
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be less than 5MB')
+      setError(t('errors.file_too_large'))
       return
     }
-    
     setError('')
     const reader = new FileReader()
     reader.onload = function() {
       setImageSrc(reader.result as string)
     }
     reader.onerror = function() {
-      setError('Failed to read image file')
+      setError(t('errors.failed_to_read_file'))
     }
     reader.readAsDataURL(file)
-  }, [])
+  }, [t])
 
   const generatePreview = useCallback(async function() {
     if (!imageRef.current || !croppedAreaPixels) return
@@ -183,11 +179,9 @@ function AvatarCropModal({
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
       if (!ctx) return
-      
       const previewSize = 200
       canvas.width = previewSize
       canvas.height = previewSize
-      
       ctx.drawImage(
         imageRef.current,
         croppedAreaPixels.x,
@@ -199,7 +193,6 @@ function AvatarCropModal({
         previewSize,
         previewSize
       )
-      
       const previewDataUrl = canvas.toDataURL('image/jpeg', 0.8)
       setPreviewUrl(previewDataUrl)
     } catch (err) {
@@ -212,19 +205,15 @@ function AvatarCropModal({
       const image = imageRef.current
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
-      
       if (!image || !ctx || !croppedAreaPixels) {
         reject(new Error('Missing required elements for cropping'))
         return
       }
-      
       const size = 400
       canvas.width = size
       canvas.height = size
-      
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, size, size)
-      
       try {
         ctx.drawImage(
           image,
@@ -237,7 +226,6 @@ function AvatarCropModal({
           size,
           size
         )
-        
         canvas.toBlob(function(blob) {
           if (!blob) {
             reject(new Error('Canvas is empty - failed to create blob'))
@@ -253,26 +241,22 @@ function AvatarCropModal({
 
   const handleUpload = useCallback(async function() {
     if (!profile) {
-      setError('Profile not found')
+      setError(t('errors.profile_not_found'))
       return
     }
     if (!croppedAreaPixels) {
-      setError('Please crop the image first')
+      setError(t('profile.crop_first'))
       return
     }
-    
     setUploading(true)
     setError('')
-    
     try {
       const croppedBlob = await createCroppedImage()
       const file = new File([croppedBlob], `avatar-${profile.id}.jpg`, {
         type: 'image/jpeg'
       })
-      
       const fileName = `${profile.id}-${Date.now()}.jpg`
       const filePath = `avatars/${fileName}`
-      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, {
@@ -280,40 +264,32 @@ function AvatarCropModal({
           upsert: false,
           contentType: 'image/jpeg'
         })
-      
       if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
-      
       const { data: urlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath)
-      
       const publicUrl = urlData?.publicUrl
       if (!publicUrl) throw new Error('Failed to get public URL')
-      
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
         .eq('id', profile.id)
-      
       if (updateError) throw new Error(`Profile update failed: ${updateError.message}`)
-      
       setSuccess(true)
-      
       // ✅ Emit custom event for cross-page sync
-      window.dispatchEvent(new CustomEvent('profile:updated', { 
-        detail: { profileId: profile.id, field: 'avatar_url', value: publicUrl } 
+      window.dispatchEvent(new CustomEvent('profile:updated', {
+        detail: { profileId: profile.id, field: 'avatar_url', value: publicUrl }
       }))
-      
       setTimeout(() => {
         onSuccess(publicUrl)
         onClose()
       }, 1500)
     } catch (err: any) {
-      setError(err.message || 'Failed to upload avatar. Please try again.')
+      setError(err.message || t('errors.avatar_upload_failed'))
     } finally {
       setUploading(false)
     }
-  }, [profile, croppedAreaPixels, createCroppedImage, supabase, onSuccess, onClose])
+  }, [profile, croppedAreaPixels, createCroppedImage, supabase, onSuccess, onClose, t])
 
   const triggerFileInput = useCallback(function() {
     fileInputRef.current?.click()
@@ -349,18 +325,17 @@ function AvatarCropModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 id="avatar-modal-title" className="text-lg font-semibold text-gray-900">
-            {imageSrc ? 'Crop Your Avatar' : 'Select Profile Picture'}
+            {imageSrc ? t('profile.crop_avatar') : t('profile.select_picture')}
           </h3>
           <button
             onClick={onClose}
             disabled={uploading}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
-            aria-label="Close modal"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
-
         <div className="p-6">
           {!imageSrc ? (
             <div className="flex flex-col items-center py-8">
@@ -369,7 +344,7 @@ function AvatarCropModal({
                 className="h-32 w-32 rounded-2xl border-4 border-dashed border-gray-300 hover:border-[#007847] flex flex-col items-center justify-center gap-2 transition-colors bg-gray-50"
               >
                 <Camera className="h-8 w-8 text-gray-400" />
-                <span className="text-sm text-gray-500">Tap to select</span>
+                <span className="text-sm text-gray-500">{t('profile.tap_to_select')}</span>
               </button>
               <input
                 ref={fileInputRef}
@@ -380,7 +355,7 @@ function AvatarCropModal({
                 disabled={uploading}
               />
               <p className="text-sm text-gray-500 mt-4 text-center">
-                Choose a square image for best results
+                {t('profile.square_image_tip')}
               </p>
               {error && (
                 <div className="flex items-center gap-2 p-3 mt-4 rounded-lg bg-red-50 text-red-700 text-sm" role="alert">
@@ -399,7 +374,7 @@ function AvatarCropModal({
                 <img
                   ref={imageRef}
                   src={imageSrc}
-                  alt="Crop preview"
+                  alt={t('profile.crop_preview')}
                   className="absolute max-w-none cursor-move"
                   style={{
                     transform: `translate(${crop.x}px, ${crop.y}px) scale(${zoom}) rotate(${rotation}deg)`,
@@ -443,7 +418,7 @@ function AvatarCropModal({
                     onClick={handleZoomOut}
                     disabled={uploading}
                     className="p-1.5 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50"
-                    aria-label="Zoom out"
+                    aria-label={t('profile.zoom_out')}
                   >
                     <ZoomOut className="h-4 w-4 text-white" />
                   </button>
@@ -456,13 +431,13 @@ function AvatarCropModal({
                     onChange={(e) => setZoom(parseFloat(e.target.value))}
                     disabled={uploading}
                     className="w-20 accent-[#007847]"
-                    aria-label="Zoom level"
+                    aria-label={t('profile.zoom_level')}
                   />
                   <button
                     onClick={handleZoomIn}
                     disabled={uploading}
                     className="p-1.5 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50"
-                    aria-label="Zoom in"
+                    aria-label={t('profile.zoom_in')}
                   >
                     <ZoomIn className="h-4 w-4 text-white" />
                   </button>
@@ -470,41 +445,37 @@ function AvatarCropModal({
                     onClick={handleReset}
                     disabled={uploading}
                     className="p-1.5 hover:bg-white/20 rounded-full transition-colors ml-2 disabled:opacity-50"
-                    aria-label="Reset crop"
+                    aria-label={t('profile.reset_crop')}
                   >
                     <RotateCcw className="h-4 w-4 text-white" />
                   </button>
                 </div>
               </div>
-
               <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">Preview:</span>
+                <span className="text-sm text-gray-600">{t('profile.preview')}:</span>
                 <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-[#007847] bg-white">
                   {previewUrl ? (
-                    <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
+                    <img src={previewUrl} alt={t('profile.preview')} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-[#bb0000] to-[#007847] flex items-center justify-center text-white text-sm font-bold">
+                    <div className="h-full w-full bg-linear-to-br from-[#bb0000] to-[#007847] flex items-center justify-center text-white text-sm font-bold">
                       {profile?.username?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   )}
                 </div>
                 <span className="text-xs text-gray-500">400x400px</span>
               </div>
-
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm" role="alert">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
-
               {success && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-700 text-sm" role="status">
                   <Check className="h-4 w-4 shrink-0" />
-                  <span>Avatar updated successfully! 🎉</span>
+                  <span>{t('success.avatar_updated')}</span>
                 </div>
               )}
-
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setImageSrc(null)}
@@ -512,7 +483,7 @@ function AvatarCropModal({
                   className="flex-1 px-4 py-2.5 rounded-full font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button
                   onClick={handleUpload}
@@ -526,30 +497,29 @@ function AvatarCropModal({
                   {uploading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Uploading...
+                      {t('loading.uploading')}
                     </>
                   ) : success ? (
                     <>
                       <Check className="h-4 w-4" />
-                      Done!
+                      {t('common.done')}
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      Save Avatar
+                      {t('profile.save_avatar')}
                     </>
                   )}
                 </button>
               </div>
             </div>
           )}
-
           <div className="mt-6 p-4 rounded-lg bg-gray-50 text-xs text-gray-600">
-            <p className="font-medium mb-2">Tips for great avatars:</p>
+            <p className="font-medium mb-2">{t('profile.avatar_tips_title')}:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>Use a clear, well-lit photo of your face</li>
-              <li>Square images work best (400x400px recommended)</li>
-              <li>Max file size: 5MB • Formats: JPG, PNG, WebP</li>
+              <li>{t('profile.avatar_tips.1')}</li>
+              <li>{t('profile.avatar_tips.2')}</li>
+              <li>{t('profile.avatar_tips.3')}</li>
             </ul>
           </div>
         </div>
@@ -570,6 +540,7 @@ function MpesaTipModal({
   creatorProfile: ExtendedProfile | null
   supabase: any
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const { user } = useAuth()
   const [phoneNumber, setPhoneNumber] = useState('')
   const [amount, setAmount] = useState('50')
@@ -592,32 +563,29 @@ function MpesaTipModal({
   const handleSubmit = useCallback(async function(e: React.FormEvent) {
     e.preventDefault()
     if (!user) {
-      setMessage('Please login to send a tip')
+      setMessage(t('mpesa.login_required'))
       setStep('error')
       return
     }
     if (!phoneNumber.match(/^254\d{9}$/)) {
-      setMessage('Please enter a valid Kenyan phone number')
+      setMessage(t('mpesa.invalid_phone'))
       setStep('error')
       return
     }
     const tipAmount = parseInt(amount)
     if (isNaN(tipAmount) || tipAmount < 10 || tipAmount > 150000) {
-      setMessage('Amount must be between KSh 10 and KSh 150,000')
+      setMessage(t('mpesa.amount_range'))
       setStep('error')
       return
     }
-    
     setStep('processing')
     setMessage('')
-    
     try {
       await new Promise((resolve) => setTimeout(resolve, 2500))
       const ref = `MP${Date.now().toString().slice(-6)}`
       setReference(ref)
       setStep('success')
-      setMessage(`STK push sent to ${phoneNumber}. Enter your M-Pesa PIN to complete.`)
-      
+      setMessage(t('mpesa.success_msg'))
       await supabase.from('tips').insert({
         sender_id: user.id,
         receiver_id: creatorProfile?.id,
@@ -628,9 +596,9 @@ function MpesaTipModal({
       })
     } catch (err: any) {
       setStep('error')
-      setMessage(err.message || 'Failed to initiate payment. Please try again.')
+      setMessage(err.message || t('mpesa.payment_failed'))
     }
-  }, [user, phoneNumber, amount, creatorProfile, supabase])
+  }, [user, phoneNumber, amount, creatorProfile, supabase, t])
 
   const handleRetry = useCallback(function() {
     setStep('form')
@@ -652,38 +620,36 @@ function MpesaTipModal({
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-[#4CAF50] to-[#45a049]">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-linear-to-r from-[#4CAF50] to-[#45a049]">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center">
               <Phone className="h-4 w-4" style={{ color: KENYA.mpesa }} />
             </div>
-            <h3 id="mpesa-modal-title" className="text-lg font-semibold text-white">Support with M-Pesa</h3>
+            <h3 id="mpesa-modal-title" className="text-lg font-semibold text-white">{t('mpesa.title')}</h3>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/20 rounded-full transition-colors"
-            aria-label="Close modal"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5 text-white" />
           </button>
         </div>
-
         <div className="p-6">
           {step === 'form' && (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <div className="h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-[#bb0000] to-[#007847] flex items-center justify-center text-white font-bold">
+                <div className="h-10 w-10 rounded-full overflow-hidden bg-linear-to-br from-[#bb0000] to-[#007847] flex items-center justify-center text-white font-bold">
                   {creatorProfile?.username?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">@{creatorProfile?.username}</p>
-                  <p className="text-sm text-gray-500">Creator</p>
+                  <p className="text-sm text-gray-500">{t('mpesa.creator')}</p>
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  M-Pesa Phone Number
+                  {t('mpesa.phone_label')}
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -691,21 +657,20 @@ function MpesaTipModal({
                     type="tel"
                     value={phoneNumber}
                     onChange={handlePhoneChange}
-                    placeholder="2547XXXXXXXX"
+                    placeholder={t('mpesa.phone_placeholder')}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
                     required
                     pattern="^254\d{9}$"
-                    aria-label="M-Pesa phone number"
+                    aria-label={t('mpesa.phone_label')}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Format: 254712345678 (Kenyan numbers only)
+                  {t('mpesa.phone_format')}
                 </p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount (KSh)
+                  {t('mpesa.amount_label')}
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {['50', '100', '200', '500'].map((amt) => (
@@ -728,32 +693,28 @@ function MpesaTipModal({
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Custom amount"
+                    placeholder={t('mpesa.amount_placeholder')}
                     min="10"
                     max="150000"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
-                    aria-label="Custom amount"
+                    aria-label={t('mpesa.amount_label')}
                   />
                 </div>
               </div>
-
               <div className="p-4 bg-[#4CAF50]/10 border border-[#4CAF50]/30 rounded-xl">
                 <p className="text-sm text-[#4CAF50] flex items-start gap-2">
                   <Check className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>
-                    You'll receive an M-Pesa prompt on your phone.
-                    Enter your PIN to complete the payment securely.
+                    {t('mpesa.pin_instruction')}
                   </span>
                 </p>
               </div>
-
               {message && step === 'form' && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm" role="alert">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{message}</span>
                 </div>
               )}
-
               <button
                 type="submit"
                 className="w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2"
@@ -763,11 +724,10 @@ function MpesaTipModal({
                 }}
               >
                 <Send className="h-4 w-4" />
-                Send KSh {amount} via M-Pesa
+                {t('mpesa.send', { amount })}
               </button>
             </form>
           )}
-
           {step === 'processing' && (
             <div className="text-center py-8">
               <div className="relative mx-auto mb-4">
@@ -780,21 +740,20 @@ function MpesaTipModal({
                 </div>
                 <Phone className="absolute inset-0 m-auto h-6 w-6" style={{ color: KENYA.mpesa }} />
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Processing Payment</h4>
-              <p className="text-gray-600">Check your phone for the M-Pesa prompt...</p>
-              <p className="text-sm text-gray-500 mt-2">Reference: MP{Date.now().toString().slice(-6)}</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">{t('mpesa.processing')}</h4>
+              <p className="text-gray-600">{t('mpesa.processing_msg')}</p>
+              <p className="text-sm text-gray-500 mt-2">{t('mpesa.reference')}: MP{Date.now().toString().slice(-6)}</p>
             </div>
           )}
-
           {step === 'success' && (
             <div className="text-center py-6">
               <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
                 <Check className="h-8 w-8 text-green-600" />
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">STK Push Sent! 🎉</h4>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">{t('mpesa.success')}</h4>
               <p className="text-gray-600 mb-4">{message}</p>
               <div className="p-4 bg-gray-50 rounded-xl mb-6">
-                <p className="text-sm text-gray-500">Transaction Reference</p>
+                <p className="text-sm text-gray-500">{t('mpesa.reference')}</p>
                 <p className="font-mono font-semibold text-gray-900">{reference}</p>
               </div>
               <div className="space-y-3">
@@ -803,38 +762,36 @@ function MpesaTipModal({
                   className="w-full py-3 rounded-xl font-semibold text-white"
                   style={{ background: KENYA_GRADIENT.primary }}
                 >
-                  Done
+                  {t('common.done')}
                 </button>
                 <button
                   onClick={handleRetry}
                   className="w-full py-3 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
-                  Send Another Tip
+                  {t('mpesa.send_another')}
                 </button>
               </div>
             </div>
           )}
-
           {step === 'error' && message && (
             <div className="text-center py-6">
               <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Payment Failed</h4>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">{t('mpesa.error')}</h4>
               <p className="text-gray-600 mb-6">{message}</p>
               <button
                 onClick={handleRetry}
                 className="w-full py-3 rounded-xl font-semibold text-white"
                 style={{ background: KENYA_GRADIENT.primary }}
               >
-                Try Again
+                {t('mpesa.retry')}
               </button>
             </div>
           )}
         </div>
-
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 text-center">
-          <p>Secured by Safaricom M-Pesa • Transactions are encrypted</p>
+          <p>{t('mpesa.secured')}</p>
         </div>
       </div>
     </div>
@@ -855,6 +812,7 @@ function FollowersModal({
   type: 'followers' | 'following'
   supabase: any
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -924,17 +882,16 @@ function FollowersModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 id="followers-modal-title" className="text-lg font-semibold text-gray-900">
-            {type === 'followers' ? 'Followers' : 'Following'}
+            {type === 'followers' ? t('profile.followers') : t('profile.following')}
           </h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Close modal"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
-
         <div className="overflow-y-auto max-h-[60vh] p-4">
           {loading ? (
             <div className="flex justify-center py-8">
@@ -949,7 +906,7 @@ function FollowersModal({
           ) : users.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-2 opacity-30" />
-              <p>No {type} yet</p>
+              <p>{t('profile.no_followers_yet', { type: type === 'followers' ? t('profile.followers').toLowerCase() : t('profile.following').toLowerCase() })}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1020,6 +977,7 @@ function SocialLinksEditor({
   onUpdate: (links: { twitter?: string, instagram?: string, website?: string }) => void
   supabase: any
 }) {
+  const { t } = useLanguage() // ✅ Get translation function
   const [editing, setEditing] = useState(false)
   const [twitter, setTwitter] = useState(profile.twitter || '')
   const [instagram, setInstagram] = useState(profile.instagram || '')
@@ -1031,9 +989,9 @@ function SocialLinksEditor({
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ 
-          twitter, 
-          instagram, 
+        .update({
+          twitter,
+          instagram,
           website,
           updated_at: new Date().toISOString()
         })
@@ -1041,23 +999,21 @@ function SocialLinksEditor({
       if (error) throw error
       onUpdate({ twitter, instagram, website })
       setEditing(false)
-      
       // ✅ Emit custom event for cross-page sync
-      window.dispatchEvent(new CustomEvent('profile:updated', { 
-        detail: { 
-          profileId: profile.id, 
-          fields: { twitter, instagram, website } 
-        } 
+      window.dispatchEvent(new CustomEvent('profile:updated', {
+        detail: {
+          profileId: profile.id,
+          fields: { twitter, instagram, website }
+        }
       }))
-      
-      toast.success('Social links updated!')
+      toast.success(t('success.social_updated'))
     } catch (err: any) {
-      toast.error('Failed to update social links')
+      toast.error(t('errors.social_update_failed'))
       console.error('Update error:', err)
     } finally {
       setSaving(false)
     }
-  }, [profile.id, twitter, instagram, website, onUpdate, supabase])
+  }, [profile.id, twitter, instagram, website, onUpdate, supabase, t])
 
   const formatSocialUrl = useCallback(function(platform: string, handle: string) {
     if (!handle) return ''
@@ -1074,13 +1030,13 @@ function SocialLinksEditor({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-gray-700">Social Links</h4>
+          <h4 className="font-medium text-gray-700">{t('profile.social_links')}</h4>
           <button
             onClick={() => setEditing(true)}
             className="text-sm text-[#bb0000] hover:underline flex items-center gap-1"
           >
             <Edit className="h-3.5 w-3.5" />
-            Edit
+            {t('common.edit')}
           </button>
         </div>
         {hasLinks ? (
@@ -1121,7 +1077,7 @@ function SocialLinksEditor({
             )}
           </div>
         ) : (
-          <p className="text-sm text-gray-500 italic">No social links added yet</p>
+          <p className="text-sm text-gray-500 italic">{t('profile.no_social_links')}</p>
         )}
       </div>
     )
@@ -1130,19 +1086,19 @@ function SocialLinksEditor({
   return (
     <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
       <div className="flex items-center justify-between">
-        <h4 className="font-medium text-gray-700">Edit Social Links</h4>
+        <h4 className="font-medium text-gray-700">{t('profile.edit_social_links')}</h4>
         <button
           onClick={() => setEditing(false)}
           className="text-sm text-gray-500 hover:text-gray-700"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
       <div className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             <Twitter className="h-4 w-4 inline mr-1" />
-            Twitter/X Handle
+            {t('profile.twitter_handle')}
           </label>
           <input
             type="text"
@@ -1155,7 +1111,7 @@ function SocialLinksEditor({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             <Instagram className="h-4 w-4 inline mr-1" />
-            Instagram Handle
+            {t('profile.instagram_handle')}
           </label>
           <input
             type="text"
@@ -1168,7 +1124,7 @@ function SocialLinksEditor({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             <Globe className="h-4 w-4 inline mr-1" />
-            Website URL
+            {t('profile.website_url')}
           </label>
           <input
             type="url"
@@ -1188,12 +1144,12 @@ function SocialLinksEditor({
         {saving ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Saving...
+            {t('loading.saving')}
           </>
         ) : (
           <>
             <Check className="h-4 w-4" />
-            Save Changes
+            {t('common.save_changes')}
           </>
         )}
       </button>
@@ -1208,7 +1164,8 @@ function ProfileStats({
   followerCount,
   followingCount,
   onFollowersClick,
-  onFollowingClick
+  onFollowingClick,
+  t
 }: {
   videos: Video[]
   videoStats: Record<string, { views: number, likes: number }>
@@ -1216,37 +1173,38 @@ function ProfileStats({
   followingCount: number
   onFollowersClick: () => void
   onFollowingClick: () => void
+  t: (key: string, params?: Record<string, string | number>) => string
 }) {
-  const totalViews = videos.reduce((sum, v) => sum + (videoStats[v.id]?.views || v.views || 0), 0)
+  const totalViews = videos.reduce((sum, v) => sum + (videoStats[v.id]?.views || 0), 0)
   const totalLikes = videos.reduce((sum, v) => sum + (videoStats[v.id]?.likes || 0), 0)
 
   return (
     <div className="flex flex-wrap items-center gap-6 mt-6 pt-6 border-t border-gray-200">
       <div className="text-center">
         <p className="text-2xl font-bold" style={{ color: KENYA.red }}>{videos.length}</p>
-        <p className="text-sm text-gray-500">Videos</p>
+        <p className="text-sm text-gray-500">{t('profile.videos')}</p>
       </div>
       <div className="text-center">
         <p className="text-2xl font-bold" style={{ color: KENYA.green }}>{formatNumber(totalViews)}</p>
-        <p className="text-sm text-gray-500">Views</p>
+        <p className="text-sm text-gray-500">{t('profile.views')}</p>
       </div>
       <div className="text-center">
         <p className="text-2xl font-bold" style={{ color: KENYA.red }}>{formatNumber(totalLikes)}</p>
-        <p className="text-sm text-gray-500">Likes</p>
+        <p className="text-sm text-gray-500">{t('profile.likes')}</p>
       </div>
       <button
         onClick={onFollowersClick}
         className="text-center hover:opacity-70 transition-opacity"
       >
         <p className="text-2xl font-bold text-gray-900">{formatNumber(followerCount)}</p>
-        <p className="text-sm text-gray-500">Followers</p>
+        <p className="text-sm text-gray-500">{t('profile.followers')}</p>
       </button>
       <button
         onClick={onFollowingClick}
         className="text-center hover:opacity-70 transition-opacity"
       >
         <p className="text-2xl font-bold text-gray-900">{formatNumber(followingCount)}</p>
-        <p className="text-sm text-gray-500">Following</p>
+        <p className="text-sm text-gray-500">{t('profile.following')}</p>
       </button>
     </div>
   )
@@ -1256,17 +1214,19 @@ function ProfileStats({
 function VideoGrid({
   videos,
   videoStats,
-  viewMode
+  viewMode,
+  t
 }: {
   videos: Video[]
   videoStats: Record<string, { views: number, likes: number }>
   viewMode: 'grid' | 'list'
+  t: (key: string, params?: Record<string, string | number>) => string
 }) {
   if (viewMode === 'grid') {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {videos.map((video) => {
-          const stats = videoStats[video.id] || { views: video.views || 0, likes: 0 }
+          const stats = videoStats[video.id] || { views: 0, likes: 0 }
           return (
             <Link
               key={video.id}
@@ -1284,7 +1244,7 @@ function VideoGrid({
                     e.currentTarget.currentTime = 0
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#bb0000]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#bb0000]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="h-12 w-12 rounded-full flex items-center justify-center shadow-lg" style={{ background: `${KENYA.red}cc` }}>
                     <Play className="h-5 w-5 text-white ml-0.5" />
@@ -1327,7 +1287,7 @@ function VideoGrid({
   return (
     <div className="space-y-4">
       {videos.map((video) => {
-        const stats = videoStats[video.id] || { views: video.views || 0, likes: 0 }
+        const stats = videoStats[video.id] || { views: 0, likes: 0 }
         return (
           <Link
             key={video.id}
@@ -1345,7 +1305,7 @@ function VideoGrid({
                   e.currentTarget.currentTime = 0
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#bb0000]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-linear-to-t from-[#bb0000]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="h-10 w-10 rounded-full flex items-center justify-center shadow-lg" style={{ background: `${KENYA.red}cc` }}>
                   <Play className="h-4 w-4 text-white ml-0.5" />
@@ -1364,11 +1324,11 @@ function VideoGrid({
               <div className="flex items-center gap-4 text-sm text-gray-500 mt-3">
                 <span className="flex items-center gap-1">
                   <Eye className="h-4 w-4" style={{ color: KENYA.red }} />
-                  {formatNumber(stats.views)} views
+                  {formatNumber(stats.views)} {t('video.views')}
                 </span>
                 <span className="flex items-center gap-1">
                   <Heart className="h-4 w-4" style={{ color: KENYA.green }} />
-                  {formatNumber(stats.likes)} likes
+                  {formatNumber(stats.likes)} {t('video.likes')}
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
@@ -1387,6 +1347,7 @@ function VideoGrid({
 // MAIN PAGE COMPONENT
 // ===================================================
 export default function ProfilePage() {
+  const { t } = useLanguage() // ✅ Get translation function
   const params = useParams()
   const router = useRouter()
   const { user: currentUser } = useAuth()
@@ -1413,10 +1374,10 @@ export default function ProfilePage() {
   useEffect(() => {
     const profileId = params.id as string
     if (profileId && !validateProfileId(profileId)) {
-      setError('Invalid profile ID')
+      setError(t('errors.invalid_profile_id'))
       setLoading(false)
     }
-  }, [params.id])
+  }, [params.id, t])
 
   // ✅ Fetch Profile Data
   useEffect(() => {
@@ -1433,7 +1394,7 @@ export default function ProfilePage() {
 
         if (profileResult.error) throw profileResult.error
         if (!profileResult.data) {
-          setError('Profile not found')
+          setError(t('errors.profile_not_found'))
           setLoading(false)
           return
         }
@@ -1442,7 +1403,7 @@ export default function ProfilePage() {
 
         // ✅ Security: Check private profile access
         if (profileData.is_private && currentUser?.id !== profileData.id) {
-          setError('This profile is private')
+          setError(t('errors.profile_private'))
           setLoading(false)
           return
         }
@@ -1516,14 +1477,14 @@ export default function ProfilePage() {
         }).catch(() => {})
       } catch (err: any) {
         console.error('Profile fetch error:', err)
-        setError('Failed to load profile')
+        setError(t('errors.failed_to_load_profile'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchProfile()
-  }, [params.id, currentUser, supabase])
+  }, [params.id, currentUser, supabase, t])
 
   // ✅ Real-time follower count updates
   useEffect(() => {
@@ -1577,7 +1538,7 @@ export default function ProfilePage() {
           console.log('🔄 Profile updated via Realtime:', payload)
           if (payload.new) {
             setProfile(payload.new as ExtendedProfile)
-            toast.success('Profile updated!')
+            toast.success(t('success.profile_updated'))
           }
         }
       )
@@ -1602,7 +1563,7 @@ export default function ProfilePage() {
           return prev
         })
         
-        toast.success('Profile updated!')
+        toast.success(t('success.profile_updated'))
       }
     }
 
@@ -1612,7 +1573,7 @@ export default function ProfilePage() {
       supabase.removeChannel(channel)
       window.removeEventListener('profile:updated', handleProfileUpdate as EventListener)
     }
-  }, [params.id, supabase])
+  }, [params.id, supabase, t])
 
   // ✅ Follow/Unfollow Handler
   const handleFollow = useCallback(async function() {
@@ -1631,7 +1592,7 @@ export default function ProfilePage() {
           .eq('following_id', profileId)
         setIsFollowing(false)
         setFollowerCount(prev => Math.max(0, prev - 1))
-        toast.success('Unfollowed successfully')
+        toast.success(t('success.unfollowed'))
       } else {
         await supabase
           .from('follows')
@@ -1641,19 +1602,19 @@ export default function ProfilePage() {
           })
         setIsFollowing(true)
         setFollowerCount(prev => prev + 1)
-        toast.success('Following successfully')
+        toast.success(t('success.followed'))
       }
     } catch (err) {
       console.error('Follow error:', err)
-      toast.error('Failed to update follow status')
+      toast.error(t('errors.follow_failed'))
     }
-  }, [currentUser, isFollowing, params.id, router, supabase])
+  }, [currentUser, isFollowing, params.id, router, supabase, t])
 
   // ✅ Avatar Update Handler
   const handleAvatarUpdate = useCallback(function(newAvatarUrl: string) {
     setProfile(prev => prev ? { ...prev, avatar_url: newAvatarUrl } : null)
-    toast.success('Avatar updated successfully!')
-  }, [])
+    toast.success(t('success.avatar_updated'))
+  }, [t])
 
   // ✅ Social Links Update Handler
   const handleSocialUpdate = useCallback(function(links: { twitter?: string, instagram?: string, website?: string }) {
@@ -1665,18 +1626,18 @@ export default function ProfilePage() {
     const url = `${window.location.origin}/profile/${params.id}`
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Profile link copied!')
+      toast.success(t('success.link_copied'))
     } catch {
-      toast.error('Failed to copy link')
+      toast.error(t('errors.copy_failed'))
     }
-  }, [params.id])
+  }, [params.id, t])
 
   const isOwnProfile = currentUser?.id === profile?.id
 
   // ✅ Loading State
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100">
         <div className="text-center">
           <div className="relative mx-auto mb-4">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-transparent"
@@ -1687,7 +1648,7 @@ export default function ProfilePage() {
               }}>
             </div>
           </div>
-          <p className="text-gray-700 font-medium">Loading profile... 🇰🇪</p>
+          <p className="text-gray-700 font-medium">{t('loading.profile')}</p>
         </div>
       </div>
     )
@@ -1696,19 +1657,19 @@ export default function ProfilePage() {
   // ✅ Error State
   if (error || !profile) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100">
         <div className="text-center p-8 bg-white rounded-2xl shadow-lg border border-gray-200 max-w-md mx-4">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
             <span className="text-3xl">🇰🇪</span>
           </div>
-          <p className="text-xl font-semibold text-gray-900 mb-2">{error || 'Profile not found'}</p>
+          <p className="text-xl font-semibold text-gray-900 mb-2">{error || t('errors.profile_not_found')}</p>
           <Link
             href="/"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-white transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 mt-4"
             style={{ background: KENYA_GRADIENT.primary }}
           >
             <Play className="h-4 w-4" />
-            Back to Home
+            {t('navigation.home')}
           </Link>
         </div>
       </div>
@@ -1716,9 +1677,9 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-[calc(100vh-4rem)] bg-linear-to-br from-gray-50 to-gray-100">
       {/* ✅ Kenyan Flag Progress Bar */}
-      <div 
+      <div
         className="fixed top-16 left-0 right-0 h-1 z-30"
         style={{ background: KENYA_GRADIENT.flag }}
         aria-hidden="true"
@@ -1730,7 +1691,7 @@ export default function ProfilePage() {
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
             {/* Avatar */}
             <div className="relative group">
-              <div 
+              <div
                 className="h-24 w-24 sm:h-32 sm:w-32 rounded-2xl overflow-hidden border-4 border-white shadow-lg transition-transform hover:scale-105"
                 style={{
                   background: profile.avatar_url ? 'transparent' : KENYA_GRADIENT.primary
@@ -1756,18 +1717,16 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-
               {profile.is_verified && (
-                <div className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-[#1DA1F2] flex items-center justify-center border-3 border-white shadow-lg" title="Verified Creator">
+                <div className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-[#1DA1F2] flex items-center justify-center border-3 border-white shadow-lg" title={t('profile.verified_creator')}>
                   <BadgeCheck className="h-4 w-4 text-white" />
                 </div>
               )}
-
               {isOwnProfile && (
                 <button
                   onClick={() => setAvatarModalOpen(true)}
                   className="absolute -bottom-2 -right-2 p-3 bg-white rounded-full shadow-lg border-4 border-white hover:shadow-xl transition-all group-hover:scale-110"
-                  aria-label="Update profile picture"
+                  aria-label={t('profile.update_avatar')}
                 >
                   <Camera className="h-5 w-5" style={{ color: KENYA.red }} />
                 </button>
@@ -1785,7 +1744,7 @@ export default function ProfilePage() {
                     {profile.is_verified && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1DA1F2]/10 text-[#1DA1F2] text-sm font-medium">
                         <BadgeCheck className="h-4 w-4" />
-                        Verified
+                        {t('profile.verified')}
                       </span>
                     )}
                   </div>
@@ -1813,28 +1772,28 @@ export default function ProfilePage() {
                         style={isFollowing ? {} : { background: KENYA_GRADIENT.primary }}
                       >
                         <UserPlus className="h-4 w-4" />
-                        {isFollowing ? 'Following' : 'Follow'}
+                        {isFollowing ? t('profile.following_label') : t('profile.follow')}
                       </button>
                       <button
                         onClick={() => setMpesaModalOpen(true)}
                         className="px-4 py-2.5 rounded-full font-medium text-white flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
                         style={{ background: `linear-gradient(135deg, ${KENYA.mpesa}, #45a049)` }}
-                        aria-label="Support creator with M-Pesa"
+                        aria-label={t('mpesa.title')}
                       >
                         <Phone className="h-4 w-4" />
-                        <span className="hidden sm:inline">Tip</span>
+                        <span className="hidden sm:inline">{t('profile.tip')}</span>
                       </button>
                     </>
                   )}
-                  <button 
+                  <button
                     onClick={handleShareProfile}
                     className="p-2.5 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
-                    aria-label="Share profile"
+                    aria-label={t('profile.share')}
                   >
                     <Copy className="h-5 w-5 text-gray-600" />
                   </button>
                   {!isOwnProfile && (
-                    <button className="p-2.5 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors" aria-label="More options">
+                    <button className="p-2.5 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors" aria-label={t('common.more_options')}>
                       <MoreVertical className="h-5 w-5 text-gray-600" />
                     </button>
                   )}
@@ -1855,6 +1814,7 @@ export default function ProfilePage() {
                   setFollowersModalType('following')
                   setFollowersModalOpen(true)
                 }}
+                t={t} // ✅ Pass translation function
               />
             </div>
           </div>
@@ -1874,7 +1834,7 @@ export default function ProfilePage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {t(`profile.${tab}`)}
                 </button>
               ))}
             </div>
@@ -1885,7 +1845,7 @@ export default function ProfilePage() {
                   className={`p-2 rounded-md transition-colors ${
                     viewMode === 'grid' ? 'bg-white shadow text-[#bb0000]' : 'text-gray-500 hover:text-gray-700'
                   }`}
-                  aria-label="Grid view"
+                  aria-label={t('profile.grid_view')}
                 >
                   <Grid3X3 className="h-4 w-4" />
                 </button>
@@ -1894,7 +1854,7 @@ export default function ProfilePage() {
                   className={`p-2 rounded-md transition-colors ${
                     viewMode === 'list' ? 'bg-white shadow text-[#bb0000]' : 'text-gray-500 hover:text-gray-700'
                   }`}
-                  aria-label="List view"
+                  aria-label={t('profile.list_view')}
                 >
                   <List className="h-4 w-4" />
                 </button>
@@ -1909,11 +1869,11 @@ export default function ProfilePage() {
             {videos.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 shadow-lg">
                 <Play className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No videos yet</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('profile.no_videos')}</h3>
                 <p className="text-gray-600 mb-6">
-                  {isOwnProfile 
-                    ? 'Start sharing your story by uploading your first video!' 
-                    : 'This creator hasn\'t uploaded any videos yet.'}
+                  {isOwnProfile
+                    ? t('profile.no_videos_own')
+                    : t('profile.no_videos_other')}
                 </p>
                 {isOwnProfile && (
                   <Link
@@ -1922,7 +1882,7 @@ export default function ProfilePage() {
                     style={{ background: KENYA_GRADIENT.primary }}
                   >
                     <Play className="h-4 w-4" />
-                    Upload Your First Video
+                    {t('profile.upload_first')}
                   </Link>
                 )}
               </div>
@@ -1931,6 +1891,7 @@ export default function ProfilePage() {
                 videos={videos}
                 videoStats={videoStats}
                 viewMode={viewMode}
+                t={t} // ✅ Pass translation function
               />
             )}
           </>
@@ -1939,22 +1900,22 @@ export default function ProfilePage() {
         {activeTab === 'liked' && (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 shadow-lg">
             <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Liked Videos</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('profile.liked_videos')}</h3>
             <p className="text-gray-600">
-              {isOwnProfile 
-                ? 'Videos you\'ve liked will appear here.' 
-                : 'This user\'s liked videos are private.'}
+              {isOwnProfile
+                ? t('profile.liked_own')
+                : t('profile.liked_private')}
             </p>
           </div>
         )}
 
         {activeTab === 'about' && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6 sm:p-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">About @{profile.username}</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('profile.about_title', { username: profile.username })}</h3>
             <div className="space-y-6">
               {profile.bio && (
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-2">Bio</h4>
+                  <h4 className="font-medium text-gray-700 mb-2">{t('profile.bio')}</h4>
                   <p className="text-gray-600 whitespace-pre-wrap">{sanitizeBio(profile.bio)}</p>
                 </div>
               )}
@@ -1966,12 +1927,12 @@ export default function ProfilePage() {
                 />
               )}
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Member Since</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('profile.member_since')}</h4>
                 <p className="text-gray-600">{formatDate(profile.created_at)}</p>
               </div>
               {profile.full_name && (
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-2">Full Name</h4>
+                  <h4 className="font-medium text-gray-700 mb-2">{t('profile.full_name')}</h4>
                   <p className="text-gray-600">{profile.full_name}</p>
                 </div>
               )}
@@ -1980,10 +1941,9 @@ export default function ProfilePage() {
                   <div className="flex items-start gap-3">
                     <BadgeCheck className="h-5 w-5 text-[#1DA1F2] shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-gray-900">Verified Creator</h4>
+                      <h4 className="font-medium text-gray-900">{t('profile.verified_creator')}</h4>
                       <p className="text-sm text-gray-600 mt-1">
-                        This account has been verified by Stream254 as an authentic creator.
-                        Verified creators get priority support and early access to new features.
+                        {t('profile.verified_description')}
                       </p>
                     </div>
                   </div>
@@ -2004,7 +1964,6 @@ export default function ProfilePage() {
           supabase={supabase}
         />
       )}
-
       {!isOwnProfile && profile && (
         <MpesaTipModal
           isOpen={mpesaModalOpen}
@@ -2013,7 +1972,6 @@ export default function ProfilePage() {
           supabase={supabase}
         />
       )}
-
       {profile && (
         <FollowersModal
           isOpen={followersModalOpen}
@@ -2025,4 +1983,4 @@ export default function ProfilePage() {
       )}
     </div>
   )
-} 
+}
