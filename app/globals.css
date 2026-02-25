@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+/* 🇰🇪 Kenyan Design System - Pure CSS (No Tailwind gradient classes) */
+:root {
+  --kenya-red: #bb0000;
+  --kenya-green: #007847;
+  --kenya-black: #000000;
+  --kenya-white: #ffffff;
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* 🎨 Kenyan UI Components - Using CSS variables, NOT Tailwind gradient classes */
+
+/* Primary Button - Pure CSS gradient */
+.btn-kenya-primary {
+  @apply px-6 py-3 text-white font-semibold rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  background: linear-gradient(to right, #bb0000, #990000);
+  box-shadow: 0 4px 14px 0 rgba(187, 0, 0, 0.25);
+}
+.btn-kenya-primary:hover {
+  background: linear-gradient(to right, #990000, #bb0000);
+}
+
+/* Secondary Button */
+.btn-kenya-secondary {
+  @apply px-6 py-3 text-white font-semibold rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  background: linear-gradient(to right, #007847, #005c36);
+  box-shadow: 0 4px 14px 0 rgba(0, 120, 71, 0.25);
+}
+.btn-kenya-secondary:hover {
+  background: linear-gradient(to right, #005c36, #007847);
+}
+
+/* Outline Button */
+.btn-kenya-outline {
+  @apply px-6 py-3 border-2 rounded-lg transition-all duration-300;
+  border-color: var(--kenya-black);
+  color: var(--kenya-black);
+}
+.btn-kenya-outline:hover {
+  background: var(--kenya-black);
+  color: var(--kenya-white);
+}
+
+/* Card with Kenyan border accent */
+.card-kenya {
+  @apply bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg;
+  border-top: 3px solid var(--kenya-red);
+  border-bottom: 3px solid var(--kenya-green);
+}
+
+/* Hero Section - Pure CSS gradient */
+.hero-kenya {
+  background: linear-gradient(135deg, #bb0000 0%, #000000 50%, #007847 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 5s ease infinite;
+}
+
+/* Text Gradient */
+.text-kenya-gradient {
+  background: linear-gradient(to right, #bb0000, #000000, #007847);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Input Fields */
+.input-kenya {
+  @apply w-full px-4 py-3 border-2 rounded-lg transition-all duration-300 focus:outline-none;
+  border-color: #d1d5db;
+}
+.input-kenya:focus {
+  border-color: #bb0000;
+  box-shadow: 0 0 0 3px rgba(187, 0, 0, 0.1);
+}
+
+/* Loading Spinner */
+.spinner-kenya {
+  @apply animate-spin rounded-full border-4;
+  border-color: #e5e7eb;
+  border-top-color: #bb0000;
+  border-right-color: #000000;
+  border-bottom-color: #007847;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #bb0000, #007847);
+  border-radius: 4px;
+}
+::selection {
+  background: #bb0000;
+  color: white;
+}
+
+/* Links */
+a {
+  color: #bb0000;
+  transition: color 0.2s;
+}
+a:hover {
+  color: #990000;
+}
+
+/* Focus States */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(187, 0, 0, 0.3);
+}
+
+/* Animation */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Pattern Utilities */
+.pattern-maasai {
+  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Ccircle cx='10' cy='10' r='3' fill='%23bb0000'/%3E%3Ccircle cx='30' cy='10' r='3' fill='%23007847'/%3E%3Ccircle cx='50' cy='10' r='3' fill='%23000000'/%3E%3Ccircle cx='70' cy='10' r='3' fill='%23bb0000'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 80px 80px;
+  opacity: 0.05;
+}
+
+.pattern-savanna {
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23007847' fill-opacity='0.03'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v40c11.046 0 20-8.954 20-20z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 40px 40px;
+}
+
+/* Kenyan Flag Stripe */
+.kenya-stripe {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, 
+    #007847 0%, #007847 33%, 
+    #000000 33%, #000000 34%,
+    #bb0000 34%, #bb0000 66%,
+    #000000 66%, #000000 67%,
+    #007847 67%, #007847 100%
+  );
+  border-radius: 9999px;
+}
+/* Add to your global CSS file */
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* Focus visible for keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #bb0000;
+  outline-offset: 2px;
+}
+
+/* Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* Add these animations for upload progress */
+@keyframes progress {
+  from { width: 0% }
+  to { width: 100% }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out forwards;
+}
+
+/* Kenyan flag gradient utility */
+.bg-kenya-flag {
+  background: linear-gradient(90deg, 
+    #007847 0%, #007847 33%, 
+    #000000 33%, #000000 34%, 
+    #bb0000 34%, #bb0000 66%, 
+    #000000 66%, #000000 67%, 
+    #007847 67%, #007847 100%);
+}
