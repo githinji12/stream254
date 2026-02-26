@@ -6,7 +6,24 @@ import { SubscriptionRateLimiter } from '@/lib/security/subscriptionLimiter'
 
 const rateLimiter = new SubscriptionRateLimiter()
 
+// ✅ Add CORS headers helper
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*', // Or specify your domain: 'https://stream254.netlify.app'
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  }
+}
+
 export async function POST(request: NextRequest) {
+  // ✅ Handle preflight OPTIONS request for CORS
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 200,
+      headers: corsHeaders(),
+    })
+  }
+
   try {
     const { email, source = 'other', metadata = {} } = await request.json()
     
@@ -14,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
         { error: 'Valid email address is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
     
@@ -23,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: 'Please enter a valid email address' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
     
@@ -38,13 +55,19 @@ export async function POST(request: NextRequest) {
           error: 'Too many subscription attempts. Please try again later.',
           retryAfter: remainingSeconds
         },
-        { status: 429, headers: { 'Retry-After': remainingSeconds.toString() } }
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders(),
+            'Retry-After': remainingSeconds.toString()
+          } 
+        }
       )
     }
     
     const supabase = await createClient()
     
-    // ✅ FIX: Include 'metadata' in the select query
+    // Check if already subscribed
     const { data: existing, error: findError } = await supabase
       .from('subscriptions')
       .select('id, confirmed, unsubscribed, metadata')
@@ -55,7 +78,7 @@ export async function POST(request: NextRequest) {
       console.error('Subscription lookup error:', findError)
       return NextResponse.json(
         { error: 'Failed to process subscription. Please try again.' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders() }
       )
     }
     
@@ -85,7 +108,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: 'You are already subscribed to Stream254! 🎉',
           alreadySubscribed: true
-        })
+        }, { headers: corsHeaders() })
       }
     } else {
       // New subscription
@@ -93,7 +116,7 @@ export async function POST(request: NextRequest) {
         .from('subscriptions')
         .insert({
           email: normalizedEmail,
-          confirmed: true, // Single opt-in for now (can change to false for double opt-in)
+          confirmed: true,
           confirmed_at: new Date().toISOString(),
           source,
           metadata: { ...metadata, subscribed_via: 'api' },
@@ -101,13 +124,12 @@ export async function POST(request: NextRequest) {
         })
       
       if (insertError) {
-        // Handle unique constraint (race condition)
         if (insertError.code === '23505') {
           return NextResponse.json({
             success: true,
             message: 'You are already subscribed! 🎉',
             alreadySubscribed: true
-          })
+          }, { headers: corsHeaders() })
         }
         throw insertError
       }
@@ -126,14 +148,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Thank you for subscribing to Stream254! Check your inbox for a welcome email. 🇰🇪✨'
-    })
+    }, { headers: corsHeaders() })
     
   } catch (error: any) {
     console.error('Subscription API error:', error)
     
     return NextResponse.json(
       { error: 'Failed to process subscription. Please try again.' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+// ✅ Handle OPTIONS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders(),
+  })
 }
