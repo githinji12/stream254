@@ -53,3 +53,35 @@ export type CreatorTab =
   | 'earnings' 
   | 'audience' 
   | 'settings'
+
+
+  export type ABTest = {
+  id: string
+  name: string
+  description: string | null
+  hypothesis: string | null
+  metric: string
+  variant_a_name: string
+  variant_b_name: string
+  variant_a_config: Record<string, any>
+  variant_b_config: Record<string, any>
+  status: 'draft' | 'active' | 'paused' | 'completed'
+  start_date: string | null
+  end_date: string | null
+  target_sample_size: number
+  confidence_level: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ABTestResult = {
+  id: string
+  ab_test_id: string
+  user_id: string | null
+  variant: 'a' | 'b'
+  metric_value: number | null
+  converted: boolean
+  metadata: Record<string, any>
+  created_at: string
+}
