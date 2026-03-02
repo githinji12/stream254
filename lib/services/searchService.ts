@@ -83,6 +83,46 @@ export function highlightText(text: string, query: string, maxLength = 200): str
 }
 
 /**
+ * Calculate simple relevance score client-side
+ */
+function calculateRelevanceScore(
+  item: any,
+  query: string
+): number {
+  const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean)
+  let score = 0
+  
+  // Title match (highest weight)
+  if (item.title) {
+    const titleLower = item.title.toLowerCase()
+    searchTerms.forEach(term => {
+      if (titleLower.includes(term)) score += 10
+      if (titleLower.startsWith(term)) score += 5
+    })
+  }
+  
+  // Description match (medium weight)
+  if (item.description) {
+    const descLower = item.description.toLowerCase()
+    searchTerms.forEach(term => {
+      if (descLower.includes(term)) score += 3
+    })
+  }
+  
+  // Engagement boost
+  score += (item.views || 0) / 1000
+  score += (item.likes_count || 0) / 100
+  
+  // Recency boost (newer = higher score)
+  if (item.created_at) {
+    const daysOld = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24)
+    score += Math.max(0, 10 - daysOld) * 0.5
+  }
+  
+  return score
+}
+
+/**
  * Search videos and profiles using Full-Text Search
  */
 export async function searchContent(
@@ -104,53 +144,36 @@ export async function searchContent(
     }
   }
   
-  // Build ranking expression for relevance scoring
-  const rankExpression = `
-    ts_rank(
-      fts_content,
-      to_tsquery('english', $1),
-      32
-    ) * 1.0 +
-    (COALESCE(views, 0) / 1000.0) * 0.3 +
-    (COALESCE(likes_count, 0) / 100.0) * 0.2 +
-    POWER(EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400.0 + 1, -0.1) * 0.1
-  `
-  
-  // Build base query
-  let dbQuery = supabase
-    .from('search_results_combined')
+  // Build base query for videos
+  let videoQuery = supabase
+    .from('videos')
     .select(`
-      result_type,
-      id,
-      title,
-      description,
-      thumbnail_url,
-      video_url,
-      duration,
-      views,
-      likes_count,
-      created_at,
-      profile_id,
-      profile_username,
-      profile_avatar,
-      profile_verified,
-      rank:rank_expression
-    `, { 
-      count: 'exact',
-      head: false 
+      *,
+      profile:profiles!videos_creator_id_fkey (
+        id,
+        username,
+        avatar_url,
+        is_verified
+      ),
+      likes_count:likes(count)
+    `, { count: 'exact' })
+    .textSearch('fts_content', normalizedQuery, {
+      type: 'websearch',
+      config: 'english'
     })
-    .rpc('rank_expression', { 
-      query: normalizedQuery 
-    })
+    .eq('visibility', 'public')
   
   // Apply type filter
-  if (filters.type && filters.type !== 'all') {
-    dbQuery = dbQuery.eq('result_type', filters.type)
+  if (filters.type === 'video') {
+    // Videos only - already filtered
+  } else if (filters.type === 'profile') {
+    // Skip videos query entirely
+    videoQuery = supabase.from('videos').select('id').eq('id', '00000000-0000-0000-0000-000000000000')
   }
   
-  // Apply category filter (videos only)
+  // Apply category filter
   if (filters.category && filters.type !== 'profile') {
-    dbQuery = dbQuery.eq('category', filters.category)
+    videoQuery = videoQuery.eq('category', filters.category)
   }
   
   // Apply date range filter
@@ -162,83 +185,152 @@ export async function searchContent(
       month: new Date(now.setMonth(now.getMonth() - 1)),
       year: new Date(now.setFullYear(now.getFullYear() - 1)),
     }
-    dbQuery = dbQuery.gte('created_at', dateFilters[filters.dateRange].toISOString())
+    videoQuery = videoQuery.gte('created_at', dateFilters[filters.dateRange].toISOString())
   }
   
-  // Apply sorting
+  // Apply sorting for videos
   switch (filters.sortBy) {
     case 'views':
-      dbQuery = dbQuery.order('views', { ascending: false, nullsFirst: false })
+      videoQuery = videoQuery.order('views', { ascending: false, nullsFirst: false })
       break
     case 'likes':
-      dbQuery = dbQuery.order('likes_count', { ascending: false, nullsFirst: false })
+      videoQuery = videoQuery.order('likes_count', { ascending: false, nullsFirst: false })
       break
     case 'trending':
-      dbQuery = dbQuery
+      videoQuery = videoQuery
         .order('created_at', { ascending: false })
         .order('views', { ascending: false })
       break
     case 'newest':
-      dbQuery = dbQuery.order('created_at', { ascending: false })
+      videoQuery = videoQuery.order('created_at', { ascending: false })
       break
     case 'oldest':
-      dbQuery = dbQuery.order('created_at', { ascending: true })
+      videoQuery = videoQuery.order('created_at', { ascending: true })
       break
     case 'relevance':
     default:
-      dbQuery = dbQuery.order('rank', { ascending: false, nullsFirst: false })
+      // FTS already returns relevance-ordered results
       break
   }
   
   // Apply pagination
   const from = (page - 1) * limit
   const to = from + limit - 1
-  dbQuery = dbQuery.range(from, to)
+  videoQuery = videoQuery.range(from, to)
   
-  // Execute query
-  const { data, error, count } = await dbQuery
+  // Execute video query
+  const { data: videosData, error: videosError, count: videosCount } = await videoQuery
   
-  if (error) {
-    console.error('Search error:', error)
-    throw new Error(`Search failed: ${error.message}`)
+  if (videosError) {
+    console.error('Video search error:', videosError)
+    throw new Error(`Video search failed: ${videosError.message}`)
   }
   
-  // Transform results
-  const results: SearchResult[] = (data || []).map((item: any) => {
-    const isVideo = item.result_type === 'video'
-    
-    return {
-      type: item.result_type as 'video' | 'profile',
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      thumbnail_url: item.thumbnail_url,
-      ...(isVideo && {
-        video_url: item.video_url,
-        duration: item.duration,
-      }),
-      views: item.views || 0,
-      likes_count: item.likes_count || 0,
-      created_at: item.created_at,
-      profile: {
-        id: item.profile_id,
-        username: item.profile_username,
-        avatar_url: item.profile_avatar,
-        is_verified: item.profile_verified,
-      },
-      rank: item.rank || 0,
-      highlight: {
-        title: highlightText(item.title, query),
-        description: highlightText(item.description || '', query, 150),
-      },
-    }
-  })
+  // Search profiles
+  let profilesData: any[] = []
+  let profilesCount = 0
   
-  const total = count || 0
-  const hasMore = from + results.length < total
+  if (filters.type !== 'video') {
+    let profileQuery = supabase
+      .from('profiles')
+      .select('*', { count: 'exact' })
+      .textSearch('fts_content', normalizedQuery, {
+        type: 'websearch',
+        config: 'english'
+      })
+      .is('is_private', false)
+    
+    // Apply date range to profiles if needed
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      const now = new Date()
+      const dateFilters: Record<string, Date> = {
+        today: new Date(now.setHours(0, 0, 0, 0)),
+        week: new Date(now.setDate(now.getDate() - 7)),
+        month: new Date(now.setMonth(now.getMonth() - 1)),
+        year: new Date(now.setFullYear(now.getFullYear() - 1)),
+      }
+      profileQuery = profileQuery.gte('created_at', dateFilters[filters.dateRange].toISOString())
+    }
+    
+    profileQuery = profileQuery.range(0, limit - 1)
+    
+    const { data, error, count } = await profileQuery
+    
+    if (!error && data) {
+      profilesData = data
+      profilesCount = count || 0
+    }
+  }
+  
+  // Combine and transform results
+  const videoResults: SearchResult[] = (videosData || []).map((video: any) => ({
+    type: 'video' as const,
+    id: video.id,
+    title: video.title,
+    description: video.description,
+    thumbnail_url: video.thumbnail_url,
+    video_url: video.video_url,
+    duration: video.duration,
+    views: video.views || 0,
+    likes_count: video.likes_count || 0,
+    created_at: video.created_at,
+    profile: video.profile || {
+      id: video.creator_id,
+      username: 'Unknown',
+      avatar_url: null,
+      is_verified: false,
+    },
+    rank: 0, // Will be calculated below
+    highlight: {
+      title: highlightText(video.title, query),
+      description: highlightText(video.description || '', query, 150),
+    },
+  }))
+  
+  const profileResults: SearchResult[] = (profilesData || []).map((profile: any) => ({
+    type: 'profile' as const,
+    id: profile.id,
+    title: profile.username,
+    description: profile.bio,
+    thumbnail_url: profile.avatar_url,
+    video_url: null,
+    duration: null,
+    views: 0,
+    likes_count: 0,
+    created_at: profile.created_at,
+    profile: {
+      id: profile.id,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
+      is_verified: profile.is_verified,
+    },
+    rank: 0,
+    highlight: {
+      title: highlightText(profile.username, query),
+      description: highlightText(profile.bio || '', query, 150),
+    },
+  }))
+  
+  // Combine results
+  let allResults = [...videoResults, ...profileResults]
+  
+  // Sort by relevance if needed (client-side scoring)
+  if (filters.sortBy === 'relevance') {
+    allResults = allResults
+      .map(item => ({
+        ...item,
+        rank: calculateRelevanceScore(item, query)
+      }))
+      .sort((a, b) => b.rank - a.rank)
+  }
+  
+  // Apply pagination to combined results
+  const paginatedResults = allResults.slice(0, limit)
+  const total = (videosCount || 0) + profilesCount
+  const hasMore = from + paginatedResults.length < total
   
   return {
-    results,
+    results: paginatedResults,
     total,
     hasMore,
     query,
