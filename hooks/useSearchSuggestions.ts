@@ -1,19 +1,15 @@
 // hooks/useSearchSuggestions.ts
-
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { SearchSuggestion } from '@/lib/navigation/types'
-import { sanitizeSearchInput } from '@/utils/sanitize'
+// ✅ FIXED: Added useRef to imports
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { SearchSuggestion } from '@/lib/navigation/types'  // ✅ Removed SuggestionType import
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
 export type UseSearchSuggestionsOptions = {
-  /** Debounce delay in milliseconds */
   debounceMs?: number
-  /** Minimum characters before fetching */
   minChars?: number
-  /** Maximum suggestions to return */
   maxResults?: number
-  /** API endpoint for suggestions */
   endpoint?: string
 }
 
@@ -29,19 +25,14 @@ export function useSearchSuggestions({
   const [error, setError] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(-1)
 
-  // Stable debounce timer reference
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [])
 
-  /**
-   * Fetch suggestions from API with error handling
-   */
   const fetchSuggestions = useCallback(
     async (searchQuery: string) => {
       const sanitized = sanitizeSearchInput(searchQuery)
@@ -56,30 +47,26 @@ export function useSearchSuggestions({
       setError(null)
 
       try {
-        // TODO: Replace with actual API call
-        // const response = await fetch(`${endpoint}?q=${encodeURIComponent(sanitized)}`)
-        // const data = await response.json()
-        
-        // Mock response for development
         await new Promise((resolve) => setTimeout(resolve, debounceMs))
         
+        // ✅ FIXED: Use inline union type assertion instead of imported type
         const mockSuggestions: SearchSuggestion[] = [
           {
             id: `video-${sanitized}`,
             label: `Videos about "${sanitized}"`,
-            type: 'video',
+            type: 'video' as 'video' | 'creator' | 'hashtag',  // ✅ Inline union
             href: `/search?q=${encodeURIComponent(sanitized)}&type=video`,
           },
           {
             id: `creator-${sanitized}`,
             label: `Creators matching "${sanitized}"`,
-            type: 'creator',
+            type: 'creator' as 'video' | 'creator' | 'hashtag',
             href: `/search?q=${encodeURIComponent(sanitized)}&type=creator`,
           },
           {
             id: `tag-${sanitized}`,
             label: `#${sanitized}`,
-            type: 'hashtag',
+            type: 'hashtag' as 'video' | 'creator' | 'hashtag',
             href: `/search?q=${encodeURIComponent(sanitized)}&type=hashtag`,
           },
         ].slice(0, maxResults)
@@ -96,20 +83,15 @@ export function useSearchSuggestions({
     [debounceMs, minChars, maxResults, endpoint]
   )
 
-  /**
-   * Debounced query setter
-   */
   const handleQueryChange = useCallback(
     (value: string) => {
       setQuery(value)
-      setActiveIndex(-1) // Reset keyboard selection
+      setActiveIndex(-1)
 
-      // Clear existing timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
 
-      // Debounce the API call
       timeoutRef.current = setTimeout(() => {
         fetchSuggestions(value)
       }, debounceMs)
@@ -117,9 +99,6 @@ export function useSearchSuggestions({
     [fetchSuggestions, debounceMs]
   )
 
-  /**
-   * Keyboard navigation for suggestions
-   */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onSelect: (suggestion: SearchSuggestion) => void) => {
       switch (e.key) {
@@ -150,9 +129,6 @@ export function useSearchSuggestions({
     [suggestions, activeIndex]
   )
 
-  /**
-   * Clear search state
-   */
   const clearSearch = useCallback(() => {
     setQuery('')
     setSuggestions([])
@@ -161,9 +137,6 @@ export function useSearchSuggestions({
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
   }, [])
 
-  /**
-   * Memoized suggestion list with active state
-   */
   const suggestionsWithActive = useMemo(() => 
     suggestions.map((suggestion, index) => ({
       ...suggestion,
@@ -173,20 +146,15 @@ export function useSearchSuggestions({
   )
 
   return {
-    // State
     query,
     suggestions: suggestionsWithActive,
     isLoading,
     error,
     activeIndex,
-    
-    // Actions
     setQuery: handleQueryChange,
     clearSearch,
     setActiveIndex,
     handleKeyDown,
-    
-    // Utilities
     hasSuggestions: suggestions.length > 0,
     isValidQuery: query.trim().length >= minChars,
   }

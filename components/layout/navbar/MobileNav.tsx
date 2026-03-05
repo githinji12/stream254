@@ -28,12 +28,10 @@ export const MobileNav = memo(function MobileNav({
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
 
-  // Close menu on route change
   useEffect(() => {
     setIsOpen(false)
   }, [pathname])
 
-  // Prevent body scroll when menu is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -50,11 +48,11 @@ export const MobileNav = memo(function MobileNav({
   }, [])
 
   if (!isOpen) {
-    return <MobileNav.Toggle onToggle={toggleMenu} />
+    return <MobileNavToggle onToggle={toggleMenu} />
   }
 
   return (
-    <MobileNav.Menu
+    <MobileNavMenu
       isOpen={isOpen}
       onClose={() => setIsOpen(false)}
       navItems={navItems}
@@ -64,20 +62,26 @@ export const MobileNav = memo(function MobileNav({
   )
 })
 
-/**
- * Mobile Menu Toggle Button
- */
-MobileNav.Toggle = memo(function Toggle({ 
+// Helper for conditional classes
+function cn(...classes: (string | boolean | undefined)[]) {
+  return classes.filter(Boolean).join(' ')
+}
+
+// ===================================================
+// Toggle Button Component
+// ===================================================
+export const MobileNavToggle = memo(function MobileNavToggle({ 
   onToggle 
 }: { 
   onToggle: () => void 
 }) {
-  const { t } = useLanguage()
-  
   return (
     <button
       onClick={onToggle}
-      className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${FOCUS_RING}`}
+      className={cn(
+        'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors',
+        FOCUS_RING
+      )}
       aria-label="Open navigation menu"
       aria-expanded="false"
       aria-controls="mobile-menu"
@@ -89,10 +93,10 @@ MobileNav.Toggle = memo(function Toggle({
   )
 })
 
-/**
- * Mobile Menu Panel
- */
-MobileNav.Menu = memo(function Menu({
+// ===================================================
+// Menu Panel Component
+// ===================================================
+export const MobileNavMenu = memo(function MobileNavMenu({
   isOpen,
   onClose,
   navItems,
@@ -118,11 +122,10 @@ MobileNav.Menu = memo(function Menu({
   )
 
   const handleSignOut = useCallback(async () => {
-    // Implement sign out
+    // Implement your actual sign out logic here
     onClose()
   }, [onClose])
 
-  // Filter items for mobile
   const mobileItems = getFilteredNavItems(
     [...navItems.primary, ...navItems.mobile],
     isAuthenticated,
@@ -133,7 +136,7 @@ MobileNav.Menu = memo(function Menu({
 
   return (
     <div 
-      className="fixed inset-0 z-[70] md:hidden"
+      className="fixed inset-0 z-70 md:hidden"
       role="dialog"
       aria-modal="true"
       aria-label="Mobile navigation menu"
@@ -149,13 +152,13 @@ MobileNav.Menu = memo(function Menu({
       <div
         ref={focusTrapRef}
         id="mobile-menu"
-        className={`
-          relative bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl 
-          h-full w-80 max-w-full overflow-y-auto 
-          ${ANIMATIONS.slideInRight}
-        `}
+        className={cn(
+          'relative bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl',
+          'h-full w-80 max-w-full overflow-y-auto',
+          ANIMATIONS.slideInRight
+        )}
       >
-        {/* Maasai pattern overlay for mobile menu */}
+        {/* Maasai pattern overlay */}
         <div
           className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04] pointer-events-none"
           style={{
@@ -170,7 +173,10 @@ MobileNav.Menu = memo(function Menu({
           <NavLogo />
           <button
             onClick={onClose}
-            className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${FOCUS_RING}`}
+            className={cn(
+              'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors',
+              FOCUS_RING
+            )}
             aria-label="Close menu"
           >
             <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -190,15 +196,14 @@ MobileNav.Menu = memo(function Menu({
               <button
                 key={item.id}
                 onClick={() => handleNavigate(item.href)}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors
-                  text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800
-                  ${FOCUS_RING}
-                `.trim()}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors',
+                  'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
+                  FOCUS_RING
+                )}
               >
                 <span className="h-5 w-5 text-gray-500" aria-hidden="true">
-                  {/* Icon placeholder */}
-                  ●
+                  <Icon name={item.icon || 'default'} />
                 </span>
                 <span className="font-medium">{t(item.label)}</span>
                 {item.premium && (
@@ -224,12 +229,12 @@ MobileNav.Menu = memo(function Menu({
             <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => { handleNavigate('/login'); onClose() }}
-                className={`
-                  w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl 
-                  border-2 border-[var(--kenya-red)] text-[var(--kenya-red)] font-medium 
-                  hover:bg-[var(--kenya-red)] hover:text-white transition-colors
-                  ${FOCUS_RING}
-                `.trim()}
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl',
+                  'border-2 border-[var(--kenya-red)] text-[var(--kenya-red)] font-medium',
+                  'hover:bg-[var(--kenya-red)] hover:text-white transition-colors',
+                  FOCUS_RING
+                )}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" />
@@ -238,12 +243,12 @@ MobileNav.Menu = memo(function Menu({
               </button>
               <button
                 onClick={() => { handleNavigate('/signup'); onClose() }}
-                className={`
-                  w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl 
-                  bg-[var(--kenya-green)] text-white font-medium 
-                  hover:bg-[var(--kenya-green-hover, #005c36)] transition-colors
-                  ${FOCUS_RING}
-                `.trim()}
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl',
+                  'bg-[var(--kenya-green)] text-white font-medium',
+                  'hover:bg-[var(--kenya-green-hover)] transition-colors',
+                  FOCUS_RING
+                )}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6" />
@@ -261,7 +266,10 @@ MobileNav.Menu = memo(function Menu({
                   key={item.id}
                   href={item.href}
                   className="hover:text-[var(--kenya-red)] transition-colors"
-                  onClick={onClose}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleNavigate(item.href)
+                  }}
                 >
                   {t(item.label)}
                 </a>
@@ -276,3 +284,26 @@ MobileNav.Menu = memo(function Menu({
     </div>
   )
 })
+
+// ===================================================
+// ✅ Icon Registry - FIXED: All multi-path icons wrapped in fragments
+// ===================================================
+function Icon({ name }: { name: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    home: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+    trending: <path d="M23 6l-9.5 9.5-5-5L1 18" />,
+    upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
+    // ✅ FIXED: Multi-element icons wrapped in fragment
+    profile: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
+    search: <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
+    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+    close: <path d="M18 6 6 18M6 6l12 12" />,
+    default: <circle cx="12" cy="12" r="10" />,
+  }
+  
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      {paths[name] || paths.default}
+    </svg>
+  )
+}

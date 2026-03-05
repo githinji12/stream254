@@ -696,3 +696,141 @@ input:focus-visible {
     animation: none !important;
   }
 }
+/* ===================================================
+   🇰🇪 KENYAN ANIMATIONS - Required for Mobile Menu
+   =================================================== */
+
+/* Flag Slide Animation */
+@keyframes flag-slide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-flag-slide {
+  animation: flag-slide 15s linear infinite;
+  will-change: transform;
+}
+
+/* Gradient Rotate */
+@keyframes gradient-rotate {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-gradient-rotate {
+  background-size: 200% 200%;
+  animation: gradient-rotate 8s ease infinite;
+  will-change: background-position;
+}
+
+/* Gradient Slide */
+@keyframes gradient-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.animate-gradient-slide {
+  background-size: 200% 100%;
+  animation: gradient-slide 3s ease infinite;
+  will-change: background-position;
+}
+
+/* Fade In */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+/* Fade In Down */
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-down {
+  animation: fade-in-down 0.2s ease-out forwards;
+}
+
+/* Fade In Up */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out forwards;
+}
+
+/* ✅ Slide In Right - CRITICAL FOR MOBILE MENU */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .animate-flag-slide, .animate-gradient-rotate, .animate-gradient-slide, .animate-slide-in-right {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+:root {
+  /* Kenyan Brand Colors */
+  --kenya-red: #bb0000;
+  --kenya-green: #007847;
+  --kenya-black: #000000;
+  
+  /* Semantic Colors */
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+  
+  /* Toast Variables */
+  --toast-bg: #1f2937;
+  --toast-color: #f9fafb;
+  --toast-border: transparent;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --toast-bg: #1f2937;
+  --toast-color: #f9fafb;
+}
+
+/* Selection styling */
+::selection {
+  background: var(--kenya-red)/0.2;
+  color: inherit;
+}
+
+/* Focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid var(--kenya-red);
+  outline-offset: 2px;
+}
+
+/* Theme transitions */
+.theme-transition-wrapper,
+.theme-transition-wrapper * {
+  transition: background-color 0.3s ease,
+              border-color 0.3s ease,
+              color 0.3s ease,
+              opacity 0.3s ease !important;
+}
+
+/* Disable transitions on initial load to prevent FOUC */
+html:not(.theme-enabled) * {
+  transition: none !important;
+}

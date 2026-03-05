@@ -1,5 +1,4 @@
 // hooks/useKeyboardNavigation.ts
-
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
@@ -28,8 +27,9 @@ export function useKeyboardNavigation({
   const activeIndexRef = useRef(-1)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // ✅ FIXED: Use native KeyboardEvent instead of React.KeyboardEvent
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent) => {
       if (!enabled) return
 
       switch (e.key) {
@@ -95,14 +95,23 @@ export function useKeyboardNavigation({
     updateActiveDescendant()
   }, [updateActiveDescendant])
 
-  // Attach keydown listener to container
+  // ✅ FIXED: No type assertion needed - types now match naturally
   useEffect(() => {
     const container = containerRef.current
     if (!container || !enabled) return
 
-    container.addEventListener('keydown', handleKeyDown as EventListener)
+    // handleKeyDown is (e: KeyboardEvent) => void
+    // addEventListener expects EventListener = (evt: Event) => void
+    // KeyboardEvent extends Event, so this is safe without casting
+    const listener = (e: Event) => {
+      if (e instanceof KeyboardEvent) {
+        handleKeyDown(e)
+      }
+    }
+    
+    container.addEventListener('keydown', listener)
     return () => {
-      container.removeEventListener('keydown', handleKeyDown as EventListener)
+      container.removeEventListener('keydown', listener)
     }
   }, [handleKeyDown, enabled])
 
@@ -121,6 +130,7 @@ export function useKeyboardNavigation({
       updateActiveDescendant()
     },
     reset,
-    handleKeyDown,
+    // ✅ Return native handler for direct DOM usage
+    handleKeyDown: (e: KeyboardEvent) => handleKeyDown(e),
   }
 }

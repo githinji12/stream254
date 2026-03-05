@@ -1,6 +1,7 @@
 // lib/navigation/config.ts
 
-import { NavConfig } from './types'
+// ✅ FIXED: Import both NavConfig AND NavItem
+import { NavConfig, NavItem } from './types'
 
 /**
  * Centralized navigation configuration

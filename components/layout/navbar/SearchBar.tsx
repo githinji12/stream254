@@ -8,7 +8,7 @@ import { useSearchSuggestions } from '@/hooks/useSearchSuggestions'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
 import { FOCUS_RING, ANIMATIONS } from '@/lib/constants/navbar'
 import { SearchSuggestion } from '@/lib/navigation/types'
-import { sanitizeSearchInput } from '@/utils/sanitize'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
 type SearchBarProps = {
   isMobile?: boolean
@@ -82,14 +82,19 @@ export const SearchBar = memo(function SearchBar({
     [query, router, clearSearch, onClose]
   )
 
+  // ✅ FIXED: Extract native event for handleKeyboardNav
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Let keyboard navigation hook handle suggestion nav
+      // Let search suggestions hook handle suggestion-specific nav
       if (hasSuggestions) {
         handleSuggestionsKeyDown(e, handleSelectSuggestion)
       }
-      // Also allow keyboard nav hook to handle
-      handleKeyboardNav(e)
+      
+      // ✅ Extract native event from React synthetic event
+      const nativeEvent = e.nativeEvent
+      if (nativeEvent instanceof KeyboardEvent) {
+        handleKeyboardNav(nativeEvent)
+      }
     },
     [hasSuggestions, handleSuggestionsKeyDown, handleKeyboardNav, handleSelectSuggestion]
   )
@@ -257,48 +262,50 @@ export const SearchBar = memo(function SearchBar({
           ) : (
             // Suggestions list
             <ul>
-              {suggestions.map((suggestion, index) => (
-                <li key={suggestion.id} role="presentation">
-                  <button
-                    id={`suggestion-${index}`}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(suggestion)}
-                    onMouseEnter={() => {
-                      // Update active index on hover for consistency
-                    }}
-                    className={`
-                      w-full flex items-center gap-3 px-4 py-3 text-left
-                      transition-colors
-                      ${
-                        suggestion.isActive
-                          ? 'bg-[var(--kenya-red)]/10 dark:bg-[var(--kenya-red)]/20'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }
-                      ${FOCUS_RING}
-                    `.trim()}
-                    role="option"
-                    aria-selected={suggestion.isActive}
-                  >
-                    <svg
-                      className="h-4 w-4 text-gray-400 flex-shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      aria-hidden="true"
+              {suggestions.map((suggestion, index) => {
+                // ✅ FIXED: Compare index with activeIndex instead of non-existent property
+                const isActive = index === activeIndex
+                
+                return (
+                  <li key={suggestion.id} role="presentation">
+                    <button
+                      id={`suggestion-${index}`}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(suggestion)}
+                      className={`
+                        w-full flex items-center gap-3 px-4 py-3 text-left
+                        transition-colors
+                        ${
+                          isActive
+                            ? 'bg-[var(--kenya-red)]/10 dark:bg-[var(--kenya-red)]/20'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }
+                        ${FOCUS_RING}
+                      `.trim()}
+                      role="option"
+                      aria-selected={isActive}
                     >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                      {suggestion.label}
-                    </span>
-                    <span className="ml-auto text-xs text-gray-400 capitalize">
-                      {suggestion.type}
-                    </span>
-                  </button>
-                </li>
-              ))}
+                      <svg
+                        className="h-4 w-4 text-gray-400 shrink-0"  // ✅ Updated: flex-shrink-0 → shrink-0
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                      </svg>
+                      <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                        {suggestion.label}
+                      </span>
+                      <span className="ml-auto text-xs text-gray-400 capitalize">
+                        {suggestion.type}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

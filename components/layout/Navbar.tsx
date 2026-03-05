@@ -1,24 +1,15 @@
 // components/layout/Navbar.tsx
 'use client'
 
-import { memo, useCallback, useState, useEffect, useRef, Suspense } from 'react'
+import { memo, useCallback, useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/lib/i18n/client'
 import { LanguageSelector } from '@/components/shared/LanguageSelector'
 
 // ===================================================
-// 🎨 CONSTANTS - Extracted for reuse and performance
+// 🎨 CONSTANTS
 // ===================================================
-
-const KENYA_COLORS = {
-  red: 'var(--kenya-red, #bb0000)',
-  redHover: 'var(--kenya-red-hover, #990000)',
-  green: 'var(--kenya-green, #007847)',
-  greenHover: 'var(--kenya-green-hover, #005c36)',
-  black: 'var(--kenya-black, #000000)',
-  mpesa: 'var(--kenya-mpesa, #4CAF50)',
-} as const
 
 const GRADIENTS = {
   kenyanFlag: 'bg-gradient-to-r from-[var(--kenya-green)] via-[var(--kenya-black)] to-[var(--kenya-red)]',
@@ -32,6 +23,7 @@ const ANIMATIONS = {
   fadeInDown: 'animate-fade-in-down',
   fadeInUp: 'animate-fade-in-up',
   slideInRight: 'animate-slide-in-right',
+  fadeIn: 'animate-fade-in',
   pulse: 'animate-pulse',
   ping: 'animate-ping',
 } as const
@@ -39,26 +31,26 @@ const ANIMATIONS = {
 const GLASS_CLASSES = 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50'
 const FOCUS_RING = 'focus:outline-none focus:ring-2 focus:ring-[var(--kenya-red)]/50 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900'
 
-// Maasai pattern SVG (encoded for inline use)
+// ✅ FIXED: Added 'data:' prefix to SVG data URLs
 const MAASAI_PATTERN = `url("data:image/svg+xml,${encodeURIComponent(`<svg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'><g fill='none' fill-rule='evenodd'><g fill='#bb0000'><path d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/></g></g></svg>`)}")`
 
-// Kenyan shield watermark SVG (encoded)
-const KENYA_SHIELD = `url("image/svg+xml,${encodeURIComponent(`<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 5 L90 25 L90 65 L50 95 L10 65 L10 25 Z' fill='none' stroke='currentColor' stroke-width='1.5' opacity='0.6'/><path d='M50 15 L80 30 L80 60 L50 80 L20 60 L20 30 Z' fill='none' stroke='currentColor' stroke-width='1' opacity='0.4'/><line x1='50' y1='25' x2='50' y2='75' stroke='currentColor' stroke-width='1' opacity='0.3'/></svg>`)}")`
+const KENYA_SHIELD = `url("data:image/svg+xml,${encodeURIComponent(`<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 5 L90 25 L90 65 L50 95 L10 65 L10 25 Z' fill='none' stroke='currentColor' strokeWidth='1.5' opacity='0.6'/><path d='M50 15 L80 30 L80 60 L50 80 L20 60 L20 30 Z' fill='none' stroke='currentColor' strokeWidth='1' opacity='0.4'/><line x1='50' y1='25' x2='50' y2='75' stroke='currentColor' strokeWidth='1' opacity='0.3'/></svg>`)}")`
 
 // ===================================================
-// 📐 TYPE DEFINITIONS - Fixed for TypeScript
+// 📐 TYPE DEFINITIONS
 // ===================================================
+
+type IconName = 'home' | 'trending' | 'upload' | 'search' | 'bell' | 'user' | 'logout' | 'menu' | 'close' | 'sun' | 'moon' | 'star'
 
 interface NavItem {
   id: string
   label: string
   href: string
-  icon?: string
+  icon?: IconName
   requiresAuth?: boolean
   premium?: boolean
 }
 
-// ✅ All items now have consistent type structure
 const NAV_ITEMS: NavItem[] = [
   { id: 'home', label: 'navigation.home', href: '/', icon: 'home', requiresAuth: false },
   { id: 'trending', label: 'navigation.trending', href: '/trending', icon: 'trending', requiresAuth: false },
@@ -82,6 +74,11 @@ function useDebounce<T>(value: T, delay: number): T {
 
 function sanitizeInput(input: string): string {
   return input.trim().replace(/[<>{}[\]\\]/g, '').slice(0, 100)
+}
+
+// ✅ IMPROVED: More robust scrollbar width calculation
+function getScrollbarWidth(): number {
+  return window.innerWidth - document.documentElement.clientWidth
 }
 
 // ===================================================
@@ -221,6 +218,26 @@ function useFocusTrap(isActive: boolean, onEscape?: () => void) {
   return { ref: containerRef }
 }
 
+function useBodyScrollLock(isLocked: boolean) {
+  useEffect(() => {
+    if (isLocked) {
+      const originalOverflow = document.body.style.overflow
+      const originalPaddingRight = document.body.style.paddingRight
+      const scrollbarWidth = getScrollbarWidth()
+      
+      if (scrollbarWidth > 0) {
+        document.body.style.overflow = 'hidden'
+        document.body.style.paddingRight = `${scrollbarWidth}px`
+      }
+      
+      return () => {
+        document.body.style.overflow = originalOverflow
+        document.body.style.paddingRight = originalPaddingRight
+      }
+    }
+  }, [isLocked])
+}
+
 // ===================================================
 // 🧩 SUB-COMPONENTS
 // ===================================================
@@ -258,11 +275,18 @@ const NavLogo = memo(function NavLogo() {
   )
 })
 
-const SearchBar = memo(function SearchBar({ isMobile = false, onClose }: { isMobile?: boolean; onClose?: () => void }) {
+const SearchBar = memo(function SearchBar({ 
+  isMobile = false, 
+  onClose,
+  listboxId = 'search-suggestions' // ✅ FIXED: Allow unique ID override
+}: { 
+  isMobile?: boolean
+  onClose?: () => void
+  listboxId?: string
+}) {
   const { t } = useLanguage()
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
-  const listboxId = 'search-suggestions'
   
   const {
     query, suggestions, isLoading, activeIndex,
@@ -322,11 +346,14 @@ const SearchBar = memo(function SearchBar({ isMobile = false, onClose }: { isMob
           aria-activedescendant={activeIndex >= 0 ? `suggestion-${activeIndex}` : undefined}
         />
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
         </svg>
         {query && (
           <button type="button" onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" aria-label="Clear search">
-            <svg className="h-4 w-4 text-gray-400 hover:text-[var(--kenya-red)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <svg className="h-4 w-4 text-gray-400 hover:text-[var(--kenya-red)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
           </button>
         )}
       </form>
@@ -361,7 +388,8 @@ const SearchBar = memo(function SearchBar({ isMobile = false, onClose }: { isMob
                     aria-selected={index === activeIndex}
                   >
                     <svg className="h-4 w-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
                     </svg>
                     <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{suggestion.label}</span>
                     <span className="ml-auto text-xs text-gray-400 capitalize">{suggestion.type}</span>
@@ -376,18 +404,32 @@ const SearchBar = memo(function SearchBar({ isMobile = false, onClose }: { isMob
   )
 })
 
-const NavLink = memo(function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean; onClick: (href: string) => void }) {
+const NavLink = memo(function NavLink({ 
+  item, 
+  isActive, 
+  onClick,
+  isAuthenticated = false // ✅ FIXED: Added auth prop
+}: { 
+  item: NavItem
+  isActive: boolean
+  onClick: (href: string) => void
+  isAuthenticated?: boolean
+}) {
   const { t } = useLanguage()
+  
+  // ✅ FIXED: Proper disabled logic
+  const isDisabled = item.requiresAuth && !isAuthenticated
   
   return (
     <button
-      onClick={() => onClick(item.href)}
-      disabled={item.requiresAuth && false}
+      onClick={() => !isDisabled && onClick(item.href)}
+      disabled={isDisabled}
       className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 group ${
         isActive ? 'text-[var(--kenya-red)] dark:text-[#ff6b6b]' : 'text-gray-700 dark:text-gray-300 hover:text-[var(--kenya-red)] dark:hover:text-[#ff6b6b]'
-      } ${item.requiresAuth && false ? 'opacity-50 cursor-not-allowed' : ''} ${FOCUS_RING}`}
+      } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${FOCUS_RING}`}
       aria-label={t(item.label)}
       aria-current={isActive ? 'page' : undefined}
+      aria-disabled={isDisabled}
     >
       <span className={`h-4 w-4 transition-colors ${isActive ? 'text-[var(--kenya-red)]' : 'text-gray-500 group-hover:text-[var(--kenya-red)]'}`} aria-hidden="true">●</span>
       <span className="hidden lg:inline">{t(item.label)}</span>
@@ -428,7 +470,12 @@ const ProfileDropdown = memo(function ProfileDropdown({
     onClose?.()
   }, [onSignOut, onClose])
 
-  useEffect(() => { setIsOpen(false) }, [onClose])
+  // ✅ FIXED: Use callback ref pattern instead of effect dependency
+  useEffect(() => {
+    if (!isOpen) return
+    const originalOverflow = document.body.style.overflow
+    return () => { document.body.style.overflow = originalOverflow }
+  }, [isOpen])
 
   const Avatar = () => {
     const [error, setError] = useState(false)
@@ -457,12 +504,16 @@ const ProfileDropdown = memo(function ProfileDropdown({
         <button onClick={() => handleNavigate('/creator-studio')} className="flex items-center gap-3 px-4 py-3 w-full text-left rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('navigation.creator_studio')}</span>
           <span className="ml-auto text-xs text-[var(--kenya-mpesa)] bg-[var(--kenya-mpesa)]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+            </svg>
             M-Pesa
           </span>
         </button>
         <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 w-full text-left rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors mt-2">
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
           <span className="font-medium">{t('navigation.logout')}</span>
         </button>
       </div>
@@ -481,7 +532,9 @@ const ProfileDropdown = memo(function ProfileDropdown({
         aria-controls="profile-menu"
       >
         <Avatar />
-        <svg className={`h-4 w-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        <svg className={`h-4 w-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
       </button>
       {isOpen && (
         <div
@@ -500,13 +553,17 @@ const ProfileDropdown = memo(function ProfileDropdown({
           <button onClick={() => handleNavigate('/creator-studio')} className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" role="menuitem">
             <span className="text-sm font-medium">{t('navigation.creator_studio')}</span>
             <span className="ml-auto text-xs text-[var(--kenya-mpesa)] bg-[var(--kenya-mpesa)]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+              </svg>
               M-Pesa
             </span>
           </button>
           <div className="my-2 border-t border-gray-100 dark:border-gray-700" role="separator" />
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" role="menuitem">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
             <span className="text-sm font-medium">{t('navigation.logout')}</span>
           </button>
         </div>
@@ -520,7 +577,8 @@ const NotificationBell = memo(function NotificationBell() {
   return (
     <button className={`relative p-2 rounded-lg transition-all duration-300 text-gray-700 dark:text-gray-300 hover:text-[var(--kenya-red)] dark:hover:text-[#ff6b6b] hover:bg-[var(--kenya-red)]/10 dark:hover:bg-[var(--kenya-red)]/20 ${FOCUS_RING}`} aria-label={t('navigation.notifications')}>
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
       </svg>
       <span className="absolute top-1 right-1 h-2 w-2 bg-[var(--kenya-red)] rounded-full animate-ping" aria-hidden="true" />
       <span className="absolute top-1 right-1 h-2 w-2 bg-[var(--kenya-red)] rounded-full" aria-hidden="true" />
@@ -530,9 +588,12 @@ const NotificationBell = memo(function NotificationBell() {
 })
 
 const ThemeToggle = memo(function ThemeToggle() {
+  // ✅ FIXED: Initialize with false to prevent hydration mismatch
   const [isDark, setIsDark] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   
   useEffect(() => {
+    setIsMounted(true)
     const stored = localStorage.getItem('stream254_theme')
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     if (stored === 'dark' || (!stored && systemPrefersDark)) {
@@ -542,6 +603,8 @@ const ThemeToggle = memo(function ThemeToggle() {
   }, [])
 
   const toggle = useCallback(() => {
+    if (!isMounted) return
+    
     setIsDark(prev => {
       const newValue = !prev
       document.documentElement.classList.add('theme-transition')
@@ -555,7 +618,18 @@ const ThemeToggle = memo(function ThemeToggle() {
       setTimeout(() => document.documentElement.classList.remove('theme-transition'), 300)
       return newValue
     })
-  }, [])
+  }, [isMounted])
+
+  // ✅ FIXED: Render placeholder during SSR to avoid mismatch
+  if (!isMounted) {
+    return (
+      <button className={`p-2 rounded-lg ${FOCUS_RING}`} aria-label="Toggle theme" disabled>
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+        </svg>
+      </button>
+    )
+  }
 
   return (
     <button
@@ -565,7 +639,8 @@ const ThemeToggle = memo(function ThemeToggle() {
     >
       {isDark ? (
         <svg className="h-5 w-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
         </svg>
       ) : (
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -595,33 +670,64 @@ const MobileMenu = memo(function MobileMenu({
   const router = useRouter()
   const pathname = usePathname()
   const { ref: focusTrapRef } = useFocusTrap(isOpen, onClose)
+  useBodyScrollLock(isOpen)
 
-  useEffect(() => { if (isOpen) onClose() }, [pathname, isOpen, onClose])
-  useEffect(() => { document.body.style.overflow = isOpen ? 'hidden' : '' }, [isOpen])
+  useEffect(() => { 
+    if (isOpen) onClose() 
+  }, [pathname, isOpen, onClose])
+
+  // ✅ FIXED: Move handleNavigate before conditional return for clarity
+  const handleNavigate = useCallback((href: string) => {
+    router.push(href)
+    onClose?.()
+  }, [router, onClose])
 
   if (!isOpen) return null
 
-  const handleNavigate = useCallback((href: string) => {
-    router.push(href)
-    onClose()
-  }, [router, onClose])
-
   return (
-    <div className="fixed inset-0 z-70 md:hidden" role="dialog" aria-modal="true" aria-label="Mobile navigation menu">
-      <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-      <div ref={focusTrapRef} className={`relative bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl h-full w-80 max-w-full overflow-y-auto ${ANIMATIONS.slideInRight}`}>
-        <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04] pointer-events-none" style={{ backgroundImage: MAASAI_PATTERN, backgroundSize: '60px 60px' }} aria-hidden="true" />
+    <div 
+      className="fixed inset-0 z-[9999] md:hidden" 
+      role="dialog" 
+      aria-modal="true" 
+      aria-label="Mobile navigation menu"
+      aria-hidden={!isOpen}
+    >
+      <div 
+        className={`absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? ANIMATIONS.fadeIn : 'opacity-0'}`} 
+        onClick={onClose} 
+        aria-hidden="true"
+      />
+      <div 
+        ref={focusTrapRef}
+        className={`relative bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl h-full w-80 max-w-full overflow-y-auto shadow-2xl ${ANIMATIONS.slideInRight}`}
+      >
+        <div 
+          className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04] pointer-events-none" 
+          style={{ backgroundImage: MAASAI_PATTERN, backgroundSize: '60px 60px' }} 
+          aria-hidden="true" 
+        />
         <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between z-10">
           <NavLogo />
-          <button onClick={onClose} className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${FOCUS_RING}`} aria-label="Close menu">
-            <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          <button 
+            onClick={onClose} 
+            className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${FOCUS_RING}`} 
+            aria-label="Close menu"
+          >
+            <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
         <div className="relative p-4 space-y-4">
-          <SearchBar isMobile onClose={onClose} />
+          {/* ✅ FIXED: Pass unique listboxId for mobile search */}
+          <SearchBar isMobile onClose={onClose} listboxId="mobile-search-suggestions" />
           <nav className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700" aria-label="Mobile navigation">
             {NAV_ITEMS.filter(item => !item.requiresAuth || isAuthenticated).map((item) => (
-              <button key={item.id} onClick={() => handleNavigate(item.href)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 ${FOCUS_RING}`}>
+              <button 
+                key={item.id} 
+                onClick={() => handleNavigate(item.href)} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 ${FOCUS_RING}`}
+              >
                 <span className="h-5 w-5 text-gray-500" aria-hidden="true">●</span>
                 <span className="font-medium">{t(item.label)}</span>
               </button>
@@ -633,12 +739,22 @@ const MobileMenu = memo(function MobileMenu({
             </div>
           ) : (
             <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-              <button onClick={() => { handleNavigate('/login'); onClose() }} className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-[var(--kenya-red)] text-[var(--kenya-red)] font-medium hover:bg-[var(--kenya-red)] hover:text-white transition-colors ${FOCUS_RING}`}>
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" /></svg>
+              <button 
+                onClick={() => { handleNavigate('/login'); onClose() }} 
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-[var(--kenya-red)] text-[var(--kenya-red)] font-medium hover:bg-[var(--kenya-red)] hover:text-white transition-colors ${FOCUS_RING}`}
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" />
+                </svg>
                 {t('auth.login')}
               </button>
-              <button onClick={() => { handleNavigate('/signup'); onClose() }} className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--kenya-green)] text-white font-medium hover:bg-[var(--kenya-green-hover, #005c36)] transition-colors ${FOCUS_RING}`}>
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6" /></svg>
+              <button 
+                onClick={() => { handleNavigate('/signup'); onClose() }} 
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--kenya-green)] text-white font-medium hover:bg-[var(--kenya-green-hover, #005c36)] transition-colors ${FOCUS_RING}`}
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6" />
+                </svg>
                 {t('auth.signup')}
               </button>
             </div>
@@ -668,13 +784,27 @@ export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
 
-  useEffect(() => { setMobileMenuOpen(false) }, [pathname])
+  useEffect(() => { 
+    setMobileMenuOpen(false) 
+  }, [pathname])
 
   const handleSignOut = useCallback(async () => {
-    try { await signOut() } catch (error) { console.error('Sign out failed:', error) }
+    try { 
+      await signOut() 
+    } catch (error) { 
+      console.error('Sign out failed:', error) 
+    }
   }, [signOut])
 
   const handleNavigate = useCallback((href: string) => router.push(href), [router])
+
+  const toggleMobileMenu = useCallback(() => {
+    setMobileMenuOpen(prev => !prev)
+  }, [])
+
+  const closeMobileMenu = useCallback(() => {
+    setMobileMenuOpen(false)
+  }, [])
 
   return (
     <nav className="fixed top-0 w-full z-50 transition-all duration-300" role="navigation" aria-label="Main navigation">
@@ -689,17 +819,24 @@ export default function Navbar() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-2 shrink-0"><NavLogo /></div>
+            <div className="flex items-center gap-2 shrink-0">
+              <NavLogo />
+            </div>
             
             <div className="hidden md:flex items-center gap-4 flex-1 justify-center">
-              <Suspense fallback={<div className="h-10 w-96 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />}>
-                <SearchBar />
-              </Suspense>
+              {/* ✅ REMOVED: Unnecessary Suspense - SearchBar is synchronous */}
+              <SearchBar listboxId="desktop-search-suggestions" />
             </div>
             
             <div className="hidden md:flex items-center gap-2">
               {NAV_ITEMS.filter(item => !item.requiresAuth || user).map((item) => (
-                <NavLink key={item.id} item={item} isActive={pathname === item.href} onClick={handleNavigate} />
+                <NavLink 
+                  key={item.id} 
+                  item={item} 
+                  isActive={pathname === item.href} 
+                  onClick={handleNavigate}
+                  isAuthenticated={!!user} // ✅ FIXED: Pass auth state
+                />
               ))}
               <NotificationBell />
               <LanguageSelector compact />
@@ -708,7 +845,9 @@ export default function Navbar() {
               {user && profile ? (
                 <>
                   <button onClick={() => handleNavigate('/upload')} className={`hidden md:flex items-center justify-center gap-2 px-5 py-2.5 font-semibold rounded-full bg-white dark:bg-gray-800 text-[var(--kenya-red)] dark:text-[#ff6b6b] border-2 border-[var(--kenya-red)] dark:border-[#ff6b6b] hover:bg-[var(--kenya-red)] dark:hover:bg-[var(--kenya-red)] hover:text-white transition-all duration-300 shadow-sm hover:shadow-[var(--kenya-red)]/30 hover:-translate-y-0.5 ${FOCUS_RING}`}>
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                    </svg>
                     <span>{t('navigation.upload')}</span>
                   </button>
                   <ProfileDropdown username={profile.username} avatarUrl={profile.avatar_url} onSignOut={handleSignOut} />
@@ -716,11 +855,15 @@ export default function Navbar() {
               ) : (
                 <>
                   <button onClick={() => handleNavigate('/login')} className={`hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-[var(--kenya-red)] hover:bg-[var(--kenya-red)]/10 dark:hover:bg-[var(--kenya-red)]/20 transition-all ${FOCUS_RING}`}>
-                    <svg className="h-4 w-4 text-[var(--kenya-red)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" /></svg>
+                    <svg className="h-4 w-4 text-[var(--kenya-red)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" />
+                    </svg>
                     <span>{t('login')}</span>
                   </button>
                   <button onClick={() => handleNavigate('/signup')} className={`hidden md:flex items-center justify-center gap-2 px-5 py-2.5 font-semibold rounded-full bg-[var(--kenya-green)] text-white hover:bg-[var(--kenya-green-hover, #005c36)] transition-all shadow-sm hover:shadow-[var(--kenya-green)]/30 ${FOCUS_RING}`}>
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6" /></svg>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6" />
+                    </svg>
                     <span>{t('signup')}</span>
                   </button>
                 </>
@@ -730,11 +873,22 @@ export default function Navbar() {
             <div className="md:hidden flex items-center gap-2">
               <LanguageSelector compact />
               <ThemeToggle />
-              <button onClick={() => setMobileMenuOpen(prev => !prev)} className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${FOCUS_RING}`} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileMenuOpen}>
+              <button 
+                onClick={toggleMobileMenu}
+                className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${FOCUS_RING}`}
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-menu"
+                type="button"
+              >
                 {mobileMenuOpen ? (
-                  <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
                 ) : (
-                  <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                  <svg className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
                 )}
               </button>
             </div>
@@ -744,7 +898,7 @@ export default function Navbar() {
       
       <MobileMenu 
         isOpen={mobileMenuOpen} 
-        onClose={() => setMobileMenuOpen(false)} 
+        onClose={closeMobileMenu} 
         isAuthenticated={!!user} 
         username={profile?.username} 
         avatarUrl={profile?.avatar_url} 

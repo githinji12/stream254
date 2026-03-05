@@ -14,6 +14,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "bullmq": "^5.70.1",
+    "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
     "ioredis": "^5.9.3",
     "jspdf": "^4.2.0",
