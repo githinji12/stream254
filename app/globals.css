@@ -250,4 +250,449 @@ input:focus-visible {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
+}@import "tailwindcss";
+
+/* 🇰🇪 Kenyan Design System - Pure CSS (No Tailwind gradient classes) */
+:root {
+  --kenya-red: #bb0000;
+  --kenya-green: #007847;
+  --kenya-black: #000000;
+  --kenya-white: #ffffff;
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* 🎨 Kenyan UI Components - Using CSS variables, NOT Tailwind gradient classes */
+
+/* Primary Button - Pure CSS gradient */
+.btn-kenya-primary {
+  @apply px-6 py-3 text-white font-semibold rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  background: linear-gradient(to right, #bb0000, #990000);
+  box-shadow: 0 4px 14px 0 rgba(187, 0, 0, 0.25);
+}
+.btn-kenya-primary:hover {
+  background: linear-gradient(to right, #990000, #bb0000);
+}
+
+/* Secondary Button */
+.btn-kenya-secondary {
+  @apply px-6 py-3 text-white font-semibold rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  background: linear-gradient(to right, #007847, #005c36);
+  box-shadow: 0 4px 14px 0 rgba(0, 120, 71, 0.25);
+}
+.btn-kenya-secondary:hover {
+  background: linear-gradient(to right, #005c36, #007847);
+}
+
+/* Outline Button */
+.btn-kenya-outline {
+  @apply px-6 py-3 border-2 rounded-lg transition-all duration-300;
+  border-color: var(--kenya-black);
+  color: var(--kenya-black);
+}
+.btn-kenya-outline:hover {
+  background: var(--kenya-black);
+  color: var(--kenya-white);
+}
+
+/* Card with Kenyan border accent */
+.card-kenya {
+  @apply bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg;
+  border-top: 3px solid var(--kenya-red);
+  border-bottom: 3px solid var(--kenya-green);
+}
+
+/* Hero Section - Pure CSS gradient */
+.hero-kenya {
+  background: linear-gradient(135deg, #bb0000 0%, #000000 50%, #007847 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 5s ease infinite;
+}
+
+/* Text Gradient */
+.text-kenya-gradient {
+  background: linear-gradient(to right, #bb0000, #000000, #007847);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Input Fields */
+.input-kenya {
+  @apply w-full px-4 py-3 border-2 rounded-lg transition-all duration-300 focus:outline-none;
+  border-color: #d1d5db;
+}
+.input-kenya:focus {
+  border-color: #bb0000;
+  box-shadow: 0 0 0 3px rgba(187, 0, 0, 0.1);
+}
+
+/* Loading Spinner */
+.spinner-kenya {
+  @apply animate-spin rounded-full border-4;
+  border-color: #e5e7eb;
+  border-top-color: #bb0000;
+  border-right-color: #000000;
+  border-bottom-color: #007847;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #bb0000, #007847);
+  border-radius: 4px;
+}
+::selection {
+  background: #bb0000;
+  color: white;
+}
+
+/* Links */
+a {
+  color: #bb0000;
+  transition: color 0.2s;
+}
+a:hover {
+  color: #990000;
+}
+
+/* Focus States */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(187, 0, 0, 0.3);
+}
+
+/* Animation */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Pattern Utilities */
+.pattern-maasai {
+  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Ccircle cx='10' cy='10' r='3' fill='%23bb0000'/%3E%3Ccircle cx='30' cy='10' r='3' fill='%23007847'/%3E%3Ccircle cx='50' cy='10' r='3' fill='%23000000'/%3E%3Ccircle cx='70' cy='10' r='3' fill='%23bb0000'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 80px 80px;
+  opacity: 0.05;
+}
+
+.pattern-savanna {
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23007847' fill-opacity='0.03'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v40c11.046 0 20-8.954 20-20z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 40px 40px;
+}
+
+/* Kenyan Flag Stripe */
+.kenya-stripe {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, 
+    #007847 0%, #007847 33%, 
+    #000000 33%, #000000 34%,
+    #bb0000 34%, #bb0000 66%,
+    #000000 66%, #000000 67%,
+    #007847 67%, #007847 100%
+  );
+  border-radius: 9999px;
+}
+/* Add to your global CSS file */
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* Focus visible for keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #bb0000;
+  outline-offset: 2px;
+}
+
+/* Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* Add these animations for upload progress */
+@keyframes progress {
+  from { width: 0% }
+  to { width: 100% }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out forwards;
+}
+
+/* Kenyan flag gradient utility */
+.bg-kenya-flag {
+  background: linear-gradient(90deg, 
+    #007847 0%, #007847 33%, 
+    #000000 33%, #000000 34%, 
+    #bb0000 34%, #bb0000 66%, 
+    #000000 66%, #000000 67%, 
+    #007847 67%, #007847 100%);
+}
+/* Add these animations for the lively effects */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+@keyframes pulse-green {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(0, 120, 71, 0.1); }
+}
+
+@keyframes pulse-red {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(187, 0, 0, 0.1); }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 0.3s ease-in-out;
+}
+
+.animate-pulse-red {
+  animation: pulse-red 0.3s ease-in-out;
+}
+
+@keyframes live-pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-live-pulse {
+  animation: live-pulse 2s infinite;
+}
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+/* ========================================
+   🇰🇪 KENYAN ANIMATIONS - Add to globals.css
+   ======================================== */
+
+/* Animated Kenyan Flag Stripe - 15s subtle horizontal movement */
+@keyframes flag-slide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-flag-slide {
+  animation: flag-slide 15s linear infinite;
+  will-change: transform;
+}
+
+/* Logo Gradient Border Rotation - slow premium animation */
+@keyframes gradient-rotate {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient-rotate {
+  background-size: 200% 200%;
+  animation: gradient-rotate 8s ease infinite;
+  will-change: background-position;
+}
+
+/* Active Link Underline Gradient Slide */
+@keyframes gradient-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.animate-gradient-slide {
+  background-size: 200% 100%;
+  animation: gradient-slide 3s ease infinite;
+  will-change: background-position;
+}
+
+/* Fade In Down - for dropdowns */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.2s ease-out forwards;
+}
+
+/* Fade In Up - for dropdowns */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out forwards;
+}
+
+/* Slide In Right - for mobile menu */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* Fade In - general purpose */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .animate-flag-slide,
+  .animate-gradient-rotate,
+  .animate-gradient-slide {
+    animation: none !important;
+  }
+}
+
+/* ========================================
+   🎨 KENYAN CSS VARIABLES - Ensure these exist
+   ======================================== */
+:root {
+  --kenya-red: #bb0000;
+  --kenya-green: #007847;
+  --kenya-black: #000000;
+  --kenya-mpesa: #4CAF50;
+  --kenya-red-hover: #990000;
+  --kenya-green-hover: #005c36;
+}
+
+.dark {
+  --kenya-red: #ff6b6b;
+  --kenya-green: #00a86b;
+}
+/* Kenyan Flag Slide Animation */
+@keyframes flag-slide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-flag-slide {
+  animation: flag-slide 15s linear infinite;
+  will-change: transform;
+}
+
+/* Gradient Rotate for Logo Border */
+@keyframes gradient-rotate {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-gradient-rotate {
+  background-size: 200% 200%;
+  animation: gradient-rotate 8s ease infinite;
+  will-change: background-position;
+}
+
+/* Gradient Slide for Active Link Underline */
+@keyframes gradient-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.animate-gradient-slide {
+  background-size: 200% 100%;
+  animation: gradient-slide 3s ease infinite;
+  will-change: background-position;
+}
+
+/* Fade Animations */
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-down { animation: fade-in-down 0.2s ease-out forwards; }
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fade-in-up 0.2s ease-out forwards; }
+
+/* Slide In Right for Mobile Menu */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right { animation: slide-in-right 0.3s ease-out forwards; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .animate-flag-slide, .animate-gradient-rotate, .animate-gradient-slide {
+    animation: none !important;
+  }
 }
